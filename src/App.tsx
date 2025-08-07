@@ -1,24 +1,48 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import "./App.css";
+import UserList from "./components/UserList";
+import ChatWindow from "./components/ChatWindow";
+import { useUsers, useMessages } from "./hooks";
+import { mockUsers, mockMessages, currentUser } from "./data/mockData";
 
 function App() {
+  const {
+    users,
+    currentUser: user,
+    selectedUser,
+    setSelectedUser,
+  } = useUsers(mockUsers, currentUser);
+
+  const { addMessage, getMessagesForUsers, getUnreadCount, getLastMessage } =
+    useMessages(mockMessages);
+
+  const handleSendMessage = (content: string) => {
+    if (!selectedUser) return;
+    addMessage(content, user.id, selectedUser.id);
+  };
+
+  const getMessagesForUser = (userId: string) => {
+    return getMessagesForUsers(user.id, userId);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="h-screen bg-gray-100">
+      <div className="flex h-full">
+        <UserList
+          users={users}
+          selectedUser={selectedUser}
+          onUserSelect={setSelectedUser}
+          getLastMessage={getLastMessage}
+          getUnreadCount={getUnreadCount}
+          currentUserId={user.id}
+        />
+        <ChatWindow
+          selectedUser={selectedUser}
+          currentUser={user}
+          messages={getMessagesForUser(selectedUser?.id || "")}
+          onSendMessage={handleSendMessage}
+        />
+      </div>
     </div>
   );
 }
