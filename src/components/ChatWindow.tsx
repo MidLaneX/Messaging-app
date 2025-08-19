@@ -1,42 +1,95 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { User, Message } from '../types';
-import { formatLastSeen } from '../utils';
-import MessageItem from './MessageItem';
+import React, { useState, useRef, useEffect } from "react";
+import { User, Message } from "../types";
+import { formatLastSeen } from "../utils";
+import MessageItem from "./MessageItem";
+import ModernChatLanding from "./UI/ModernChatLanding";
+import { sendChatMessage } from "../services/ws";
 
 interface ChatWindowProps {
   selectedUser: User | null;
   currentUser: User;
+  loadingMessages: boolean;
   messages: Message[];
-  onSendMessage: (content: string) => void;
+  wsMessages: Message[];
+  setWsMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ 
-  selectedUser, 
-  currentUser, 
-  messages, 
-  onSendMessage 
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  selectedUser,
+  currentUser,
+  messages,
+  wsMessages,
+  setWsMessages,
 }) => {
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Filter wsMessages to only show messages relevant to current chat
+  const filteredWsMessages = wsMessages.filter((msg) => {
+    if (!selectedUser) return false;
+    
+    const isRelevantMessage =
+      (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
+      (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
+    
+    return isRelevantMessage;
+  });
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, filteredWsMessages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim() && selectedUser) {
-      onSendMessage(newMessage.trim());
-      setNewMessage('');
+      const messageId = crypto.randomUUID();
+      const message: Message = {
+        id: messageId,
+        senderId: currentUser.id,
+        recipientId: selectedUser.id,
+        createdAt: new Date().toISOString(),
+        content: newMessage.trim(),
+        chatType: "PRIVATE",
+        type: "TEXT" as Message["type"],
+      };
+
+      console.log("Sending message for user:", currentUser.id);
+
+      // Optimistically add message to UI
+      setWsMessages((prev) => [...prev, message]);
+      setNewMessage("");
+
+      // Send via WebSocket
+      const wsMessage = {
+        senderId: currentUser.id,
+        recipientId: selectedUser.id,
+        content: newMessage.trim(),
+        chatType: "PRIVATE",
+        type: "TEXT",
+      };
+
+      sendChatMessage(wsMessage)
+        .then(() => {
+          console.log("Message sent successfully");
+          // Remove the optimistic message - the real one will come via WebSocket
+          setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+        })
+        .catch((error) => {
+          console.error("Failed to send message:", error);
+          // Remove the optimistic message on error
+          setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+          // Re-add the text to input for retry
+          setNewMessage(message.content);
+        });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
     }
@@ -47,31 +100,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   if (!selectedUser) {
-    return (
-      <div className="flex-1 bg-whatsapp-gray-light flex items-center justify-center">
-        <div className="text-center text-whatsapp-gray px-10">
-          <div className="text-8xl mb-5 opacity-50">💬</div>
-          <h2 className="text-3xl font-light text-whatsapp-gray-dark mb-3">
-            WhatsApp Web
-          </h2>
-          <p className="text-lg">
-            Send and receive messages without keeping your phone online.
-            <br />
-            Use WhatsApp on up to 4 linked devices and 1 phone at the same time.
-          </p>
-        </div>
-      </div>
-    );
+    return <ModernChatLanding />;
   }
 
   return (
     <div className="flex-1 flex flex-col h-full bg-whatsapp-bg bg-whatsapp-pattern">
       {/* Chat Header */}
-      <div className="bg-whatsapp-green text-white px-5 py-4 flex items-center justify-between border-b border-gray-200">
+      <div className="bg-green-700 text-white px-5 py-4 flex items-center justify-between border-b border-gray-200">
         <div className="flex items-center">
           <div className="relative mr-4">
             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-lg">
-              {selectedUser.avatar || '👤'}
+              {selectedUser.avatar || "👤"}
             </div>
             {selectedUser.isOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
@@ -80,18 +119,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div>
             <h3 className="font-medium text-lg">{selectedUser.name}</h3>
             <p className="text-sm text-green-100">
-              {selectedUser.isOnline ? 'online' : formatLastSeenText(selectedUser.lastSeen)}
+              {selectedUser.isOnline
+                ? "online"
+                : formatLastSeenText(selectedUser.lastSeen)}
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-3">
-          <button className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors" title="Search">
+          <button
+            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
+            title="Search"
+          >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
-          <button className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors" title="More options">
+          <button
+            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
+            title="More options"
+          >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
             </svg>
@@ -102,30 +153,58 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-5">
-          {messages.length === 0 ? (
+          {/* Debug info */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-blue-100 p-2 mb-2 text-xs rounded">
+              <div>API Messages: {messages.length}</div>
+              <div>Total WS Messages: {wsMessages.length}</div>
+              <div>Filtered WS Messages: {filteredWsMessages.length}</div>
+              <div>Total Displayed: {[...messages, ...filteredWsMessages].length}</div>
+              <div>Selected User: {selectedUser?.id || 'none'}</div>
+              <div>
+                Last WS Message:{" "}
+                {filteredWsMessages.length > 0
+                  ? new Date(
+                      filteredWsMessages[filteredWsMessages.length - 1]?.createdAt || ""
+                    ).toLocaleTimeString()
+                  : "none"}
+              </div>
+            </div>
+          )}
+
+          {messages.length === 0 && filteredWsMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-whatsapp-gray italic">No messages yet. Start the conversation!</p>
+              <p className="text-whatsapp-gray italic">
+                No messages yet. Start the conversation!
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {messages.map((message, index) => {
-                const isCurrentUser = message.senderId === currentUser.id;
-                const previousMessage = index > 0 ? messages[index - 1] : undefined;
-                
-                return (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    isCurrentUser={isCurrentUser}
-                    showAvatar={
-                      index === 0 || 
-                      messages[index - 1].senderId !== message.senderId
-                    }
-                    user={isCurrentUser ? currentUser : selectedUser}
-                    previousMessage={previousMessage}
-                  />
-                );
-              })}
+              {[...messages, ...filteredWsMessages]
+                .sort(
+                  (a, b) =>
+                    new Date(a.createdAt || "").getTime() -
+                    new Date(b.createdAt || "").getTime()
+                )
+                .map((message, index, arr) => {
+                  const isCurrentUser = message.senderId === currentUser.id;
+                  const previousMessage =
+                    index > 0 ? arr[index - 1] : undefined;
+
+                  return (
+                    <MessageItem
+                      key={message.id || index}
+                      message={message}
+                      isCurrentUser={isCurrentUser}
+                      showAvatar={
+                        index === 0 ||
+                        arr[index - 1].senderId !== message.senderId
+                      }
+                      user={isCurrentUser ? currentUser : selectedUser}
+                      previousMessage={previousMessage}
+                    />
+                  );
+                })}
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -135,16 +214,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Message Input */}
       <div className="bg-whatsapp-gray-light px-5 py-3 border-t border-gray-200">
         <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
-          <button 
-            type="button" 
-            className="p-2 text-whatsapp-gray hover:text-whatsapp-gray-dark transition-colors" 
+          <button
+            type="button"
+            className="p-2 text-whatsapp-gray hover:text-whatsapp-gray-dark transition-colors"
             title="Attach file"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
-          
+
           <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
             <textarea
               value={newMessage}
@@ -154,22 +237,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               className="flex-1 border-none outline-none resize-none text-base leading-6 max-h-24"
               rows={1}
             />
-            <button 
-              type="button" 
-              className="ml-2 p-1 text-whatsapp-gray hover:text-whatsapp-gray-dark" 
+            <button
+              type="button"
+              className="ml-2 p-1 text-whatsapp-gray hover:text-whatsapp-gray-dark"
               title="Add emoji"
             >
               😊
             </button>
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             disabled={!newMessage.trim()}
             className={`p-3 rounded-full transition-colors ${
-              newMessage.trim() 
-                ? 'bg-whatsapp-green hover:bg-whatsapp-green-dark text-white' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              newMessage.trim()
+                ? "bg-green-700 hover:bg-green-700-dark text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
             title="Send message"
           >

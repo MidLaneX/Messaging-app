@@ -23,11 +23,11 @@ export class MockMessageService implements MessageService {
     return {
       id: `msg-${Date.now()}`,
       senderId,
-      receiverId,
+      recipientId: receiverId,
       content,
-      timestamp: new Date(),
-      isRead: false,
-      type: 'text',
+      createdAt: new Date().toISOString(),
+      type: "TEXT",
+      chatType: "PRIVATE",
     };
   }
 
@@ -51,12 +51,12 @@ export class MockMessageService implements MessageService {
       if (Math.random() > 0.99) {
         callback({
           id: `msg-${Date.now()}`,
-          senderId: 'user-1',
-          receiverId: 'current-user',
-          content: 'Mock real-time message',
-          timestamp: new Date(),
-          isRead: false,
-          type: 'text',
+          senderId: "user-1",
+          recipientId: "current-user",
+          content: "Mock real-time message",
+          createdAt: new Date().toISOString(),
+          type: "TEXT",
+          chatType: "PRIVATE", // or 'group' depending on your ChatType enum/type
         });
       }
     }, 1000);

@@ -5,15 +5,30 @@ export interface User {
   lastSeen?: Date;
   isOnline: boolean;
 }
+export type MessageType = "TEXT" | "IMAGE" | "FILE" | "AUDIO";
+export type ChatType = "PRIVATE" | "GROUP";
 
 export interface Message {
-  id: string;
+  id: string; // UUID string
   senderId: string;
-  receiverId: string;
+  recipientId?: string;
+  groupId?: string;
+  recipientIds?: string[];
   content: string;
-  timestamp: Date;
-  isRead: boolean;
-  type?: 'text' | 'image' | 'file' | 'audio';
+  encryptedContent?: string;
+  type: "TEXT" | "FILE" | "IMAGE" | "SYSTEM";
+  chatType: "PRIVATE" | "GROUP";
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  encryptionKeyId?: string; // UUID string
+  createdAt?: string | null; // ISO string
+  deliveredAt?: string | null; // ISO string
+  readAt?: string | null; // ISO string
+  isEdited?: boolean;
+  editedAt?: string | null; // ISO string
+  chatId?: string;
 }
 
 export interface ChatRoom {
