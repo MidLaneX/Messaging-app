@@ -11,6 +11,7 @@ interface UserListProps {
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  typingUsers: Record<string, boolean>;
 }
 
 const UserList: React.FC<UserListProps> = ({
@@ -21,6 +22,7 @@ const UserList: React.FC<UserListProps> = ({
   loading,
   hasMore,
   onLoadMore,
+  typingUsers,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +89,7 @@ const UserList: React.FC<UserListProps> = ({
         {users && users.length > 0
           ? users.map((recentUser) => {
               const isSelected = selectedUser?.id === recentUser.id;
+              const isTyping = typingUsers[recentUser.id];
 
               return (
                 <div
@@ -113,8 +116,11 @@ const UserList: React.FC<UserListProps> = ({
                         {recentUser.name}
                       </h3>
                       <span className="text-xs text-green-700 ml-2 flex-shrink-0">
-                        {recentUser.lastMessage &&
-                        recentUser.lastMessage.createdAt
+                        {isTyping
+                          ? "typing..."
+                          : recentUser.isOnline
+                          ? "online"
+                          : recentUser.lastMessage && recentUser.lastMessage.createdAt
                           ? formatTime(
                               new Date(recentUser.lastMessage.createdAt)
                             )
@@ -126,7 +132,9 @@ const UserList: React.FC<UserListProps> = ({
 
                     <div className="flex justify-between items-center">
                       <p className="text-sm text-green-700 truncate flex-1">
-                        {recentUser.lastMessage ? (
+                        {isTyping ? (
+                          <span className="italic text-gray-500">typing...</span>
+                        ) : recentUser.lastMessage ? (
                           <>
                             {recentUser.lastMessage.senderId ===
                               currentUserId && (

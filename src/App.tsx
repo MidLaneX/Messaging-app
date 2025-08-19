@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "./App.css";
 import UserList from "./components/UserList";
 import ChatWindow from "./components/ChatWindow";
 import { useRecentUsers } from "./hooks";
-import { APP_CONFIG } from "./constants";
+import { APP_CONFIG, UI_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import {
   connectWebSocket,
@@ -23,6 +23,8 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const typingTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Hardcoded current user
   const currentUser: User = {
@@ -40,6 +42,38 @@ function App() {
     loadMore,
     error,
   } = useRecentUsers();
+
+  // Update recent users with latest WebSocket messages
+  const recentUsersWithLatestMessages = useMemo(() => {
+    return recentUsers.map(user => {
+      // Find the most recent message for this user from WebSocket messages
+      const userWsMessages = wsMessages.filter(msg => 
+        (msg.senderId === user.id && msg.recipientId === currentUser.id) ||
+        (msg.senderId === currentUser.id && msg.recipientId === user.id)
+      );
+      
+      if (userWsMessages.length > 0) {
+        // Get the most recent WebSocket message
+        const latestWsMessage = userWsMessages.sort((a, b) => 
+          new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+        )[0];
+        
+        // Compare with existing lastMessage to see which is newer
+        const existingMessageTime = user.lastMessage?.createdAt ? 
+          new Date(user.lastMessage.createdAt).getTime() : 0;
+        const wsMessageTime = new Date(latestWsMessage.createdAt || '').getTime();
+        
+        if (wsMessageTime > existingMessageTime) {
+          return {
+            ...user,
+            lastMessage: latestWsMessage
+          };
+        }
+      }
+      
+      return user;
+    });
+  }, [recentUsers, wsMessages, currentUser.id]);
 
   // Update connection status periodically
   useEffect(() => {
@@ -101,6 +135,23 @@ function App() {
         globalSubscription = await subscribeToChat(
           "", // chatId not needed for private messages
           (msg) => {
+            // Handle typing indicator
+            if (msg.type === "TYPING") {
+              setTypingUsers((prev) => ({ ...prev, [msg.senderId]: true }));
+              // Clear existing timeout
+              if (typingTimeouts.current[msg.senderId]) {
+                clearTimeout(typingTimeouts.current[msg.senderId]);
+              }
+              // Setup timeout to clear typing indicator
+              const timeout = setTimeout(() => {
+                setTypingUsers((prev) => {
+                  const { [msg.senderId]: _, ...rest } = prev;
+                  return rest;
+                });
+              }, UI_CONFIG.TYPING_INDICATOR_TIMEOUT);
+              typingTimeouts.current[msg.senderId] = timeout;
+              return;
+            }
             console.log("🔥 RECEIVED MESSAGE IN APP:", msg);
             console.log("🔥 Message details:", {
               id: msg.id,
@@ -233,48 +284,18 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-100">
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-xs">
-          <div className="flex justify-between items-center">
-            <div>
-              WS: {connectionStatus.connected ? "✅" : "❌"} | Sub:{" "}
-              {connectionStatus.hasSubscription ? "✅" : "❌"} | User:{" "}
-              {currentUser.id.slice(0, 8)} | Selected:{" "}
-              {selectedUser?.id.slice(0, 8) || "none"} | WS Msgs:{" "}
-              {wsMessages.length}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={testWebSocketConnection}
-                className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
-              >
-                Test WS
-              </button>
-              {selectedUser && (
-                <button
-                  onClick={() =>
-                    (window as any).sendTestMessage?.(selectedUser.id)
-                  }
-                  className="bg-green-500 text-white px-2 py-1 rounded text-xs"
-                >
-                  Send Test
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <div className="flex h-full">
         <UserList
-          users={recentUsers}
+          users={recentUsersWithLatestMessages}
           selectedUser={selectedUser}
           onUserSelect={setSelectedUser}
           currentUserId={currentUser.id}
           loading={loading}
           hasMore={hasMore}
           onLoadMore={loadMore}
+          typingUsers={typingUsers}
         />
         <ChatWindow
           selectedUser={selectedUser}
@@ -283,6 +304,7 @@ function App() {
           wsMessages={filteredWsMessages}
           setWsMessages={setWsMessages}
           loadingMessages={loadingMessages}
+          typingUsers={typingUsers}
         />
       </div>
     </div>

@@ -32,10 +32,13 @@ export const API_ENDPOINTS = {
     `/api/users/${userId}/recent-users/initial`,
   RECENT_USERS_LOAD_MORE: (userId: string, page: number) =>
     `/api/users/${userId}/recent-users/load-more?page=${page}`,
+  RECENT_CONVERSATIONS: (userId: string) =>
+    `/api/users/${userId}/conversations`,
   SEND_MESSAGE: "/api/messages/send",
   GET_MESSAGES: (userId1: string, userId2: string) =>
     `/api/messages/${userId1}/${userId2}`,
   MARK_READ: (messageId: string) => `/api/messages/${messageId}/read`,
+  USER_GROUPS: (userId: string) => `/api/users/${userId}/groups`,
 } as const;
 
 export const ROUTES = {
