@@ -18,30 +18,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   selectedUser,
   currentUser,
   messages,
-  wsMessages,
+  wsMessages, // Now pre-filtered for the selected user
   setWsMessages,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+    // Fallback to scrollIntoView
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
-  // Filter wsMessages to only show messages relevant to current chat
-  const filteredWsMessages = wsMessages.filter((msg) => {
-    if (!selectedUser) return false;
-    
-    const isRelevantMessage =
-      (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
-      (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
-    
-    return isRelevantMessage;
-  });
-
+  // Immediately scroll to bottom when chat opens
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, filteredWsMessages]);
+    if (selectedUser) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => scrollToBottom('auto'), 0);
+    }
+  }, [selectedUser]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom('auto');
+  }, [messages, wsMessages]);
+
+  // Ensure we're at bottom after component renders
+  useEffect(() => {
+    if (selectedUser && (messages.length > 0 || wsMessages.length > 0)) {
+      // Small delay to ensure DOM is fully rendered
+      const timer = setTimeout(() => scrollToBottom('auto'), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedUser, messages.length, wsMessages.length]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +74,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       // Optimistically add message to UI
       setWsMessages((prev) => [...prev, message]);
       setNewMessage("");
+      
+      // Smooth scroll for sending new message
+      setTimeout(() => scrollToBottom('smooth'), 0);
 
       // Send via WebSocket
       const wsMessage = {
@@ -152,27 +167,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-5">
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-5" 
+          style={{ scrollBehavior: 'auto' }}
+        >
           {/* Debug info */}
           {process.env.NODE_ENV === "development" && (
             <div className="bg-blue-100 p-2 mb-2 text-xs rounded">
               <div>API Messages: {messages.length}</div>
               <div>Total WS Messages: {wsMessages.length}</div>
-              <div>Filtered WS Messages: {filteredWsMessages.length}</div>
-              <div>Total Displayed: {[...messages, ...filteredWsMessages].length}</div>
+              <div>Relevant WS Messages: {wsMessages.length}</div>
+              <div>Total Displayed: {[...messages, ...wsMessages].length}</div>
               <div>Selected User: {selectedUser?.id || 'none'}</div>
               <div>
                 Last WS Message:{" "}
-                {filteredWsMessages.length > 0
+                {wsMessages.length > 0
                   ? new Date(
-                      filteredWsMessages[filteredWsMessages.length - 1]?.createdAt || ""
+                      wsMessages[wsMessages.length - 1]?.createdAt || ""
                     ).toLocaleTimeString()
                   : "none"}
               </div>
             </div>
           )}
 
-          {messages.length === 0 && filteredWsMessages.length === 0 ? (
+          {messages.length === 0 && wsMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-whatsapp-gray italic">
                 No messages yet. Start the conversation!
@@ -180,7 +199,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {[...messages, ...filteredWsMessages]
+              {[...messages, ...wsMessages]
                 .sort(
                   (a, b) =>
                     new Date(a.createdAt || "").getTime() -

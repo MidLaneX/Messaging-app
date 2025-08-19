@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./App.css";
 import UserList from "./components/UserList";
 import ChatWindow from "./components/ChatWindow";
@@ -196,8 +196,26 @@ function App() {
   // Clear messages when selectedUser changes and update filtered messages
   useEffect(() => {
     console.log(`Selected user changed to: ${selectedUser?.id || 'none'}`);
-    // Don't clear wsMessages here - let ChatWindow filter them
-  }, [selectedUser]);
+    
+    // Clear old WebSocket messages to prevent memory bloat
+    // Keep only messages relevant to all potential conversations
+    setWsMessages(prev => prev.filter(msg => {
+      // Keep messages where current user is involved
+      return msg.senderId === currentUser.id || msg.recipientId === currentUser.id;
+    }));
+  }, [selectedUser, currentUser.id]);
+
+  // Memoize filtered messages for performance
+  const filteredWsMessages = useMemo(() => {
+    if (!selectedUser) return [];
+    
+    return wsMessages.filter((msg) => {
+      const isRelevantMessage =
+        (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
+        (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
+      return isRelevantMessage;
+    });
+  }, [wsMessages, selectedUser, currentUser.id]);
 
   if (error) {
     return (
@@ -262,7 +280,7 @@ function App() {
           selectedUser={selectedUser}
           currentUser={currentUser}
           messages={messages}
-          wsMessages={wsMessages}
+          wsMessages={filteredWsMessages}
           setWsMessages={setWsMessages}
           loadingMessages={loadingMessages}
         />
