@@ -42,51 +42,6 @@ function App() {
     error,
   } = useConversations();
 
-  // Function to get the latest message for a conversation from WebSocket messages
-  const getLatestWSMessageForConversation = (conversationId: string, isGroup: boolean): Message | undefined => {
-    const relevantMessages = wsMessages.filter((msg) => {
-      if (isGroup) {
-        return msg.chatType === "GROUP" && msg.groupId === conversationId;
-      } else {
-        return msg.chatType === "PRIVATE" && 
-               ((msg.senderId === currentUser.id && msg.recipientId === conversationId) ||
-                (msg.senderId === conversationId && msg.recipientId === currentUser.id));
-      }
-    });
-    
-    // Return the most recent message
-    return relevantMessages.length > 0 
-      ? relevantMessages.sort((a, b) => 
-          new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
-        )[0]
-      : undefined;
-  };
-
-  // Enhanced conversations with latest WebSocket messages
-  const enhancedConversations = useMemo(() => {
-    return conversations.map(conv => {
-      const latestWSMessage = getLatestWSMessageForConversation(conv.id, conv.isGroup);
-      
-      // If we have a WebSocket message, check if it's newer than the REST API message
-      if (latestWSMessage) {
-        const wsMessageTime = new Date(latestWSMessage.createdAt || "").getTime();
-        const restMessageTime = conv.lastMessage?.createdAt 
-          ? new Date(conv.lastMessage.createdAt).getTime() 
-          : 0;
-        
-        // Use WebSocket message if it's newer or if there's no REST message
-        if (wsMessageTime > restMessageTime) {
-          return {
-            ...conv,
-            lastMessage: latestWSMessage
-          };
-        }
-      }
-      
-      return conv;
-    });
-  }, [conversations, wsMessages, currentUser.id]);
-
   // Update connection status periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -394,14 +349,13 @@ function App() {
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-sm">
           <strong>Debug Info:</strong> 
-          Conversations: {enhancedConversations.length} | 
+          Conversations: {conversations.length} | 
           Loading: {loading ? 'Yes' : 'No'} | 
           Error: {error || 'None'}
-          {enhancedConversations.length > 0 && (
+          {conversations.length > 0 && (
             <div className="mt-1">
-              Users: {enhancedConversations.filter(c => !c.isGroup).length} | 
-              Groups: {enhancedConversations.filter(c => c.isGroup).length} |
-              WS Messages: {wsMessages.length}
+              Users: {conversations.filter(c => !c.isGroup).length} | 
+              Groups: {conversations.filter(c => c.isGroup).length}
             </div>
           )}
         </div>
@@ -409,7 +363,7 @@ function App() {
 
       <div className="flex h-full">
         <UserList
-          conversations={enhancedConversations}
+          conversations={conversations}
           selectedUser={selectedUser}
           onUserSelect={setSelectedUser}
           currentUserId={currentUser.id}
