@@ -12,7 +12,8 @@ export interface ChatMessage {
 }
 
 let stompClient: CompatClient | null = null;
-let currentSubscription: any = null;
+let currentSubscription: any = null; // Keep for private messages
+let activeSubscriptions = new Map<string, any>(); // For managing multiple subscriptions
 let statusSubscription: any = null;
 let subscriptionCounter = 0;
 let isConnecting = false;
@@ -269,7 +270,11 @@ export function subscribeToChat(
     "🔄 subscribeToChat called, stompClient connected:",
     stompClient?.connected,
     "currentUserId:",
-    currentUserId
+    currentUserId,
+    "isGroup:",
+    isGroup,
+    "chatId:",
+    chatId
   );
 
   return waitForConnection(15000) // Increase timeout to 15 seconds
@@ -278,20 +283,31 @@ export function subscribeToChat(
         throw new Error("STOMP client not connected after waiting");
       }
 
-      // Unsubscribe from previous subscription if it exists
-      if (currentSubscription) {
-        console.log("🔄 Unsubscribing from previous subscription");
-        try {
-          currentSubscription.unsubscribe();
-        } catch (error) {
-          console.warn("⚠️ Error unsubscribing:", error);
-        }
-        currentSubscription = null;
-      }
-
       const destination = isGroup
         ? `/topic/chat/${chatId}`
         : `/topic/private/${currentUserId}`; // switched to topic-based private channel
+
+      // Check if we already have a subscription for this destination
+      if (activeSubscriptions.has(destination)) {
+        console.log(`🔄 Already subscribed to: ${destination}`);
+        return activeSubscriptions.get(destination);
+      }
+
+      // For private messages, also handle the legacy currentSubscription
+      if (!isGroup) {
+        // Unsubscribe from previous private subscription if it exists
+        if (currentSubscription) {
+          console.log("🔄 Unsubscribing from previous private subscription");
+          try {
+            currentSubscription.unsubscribe();
+            const oldDest = `/topic/private/${currentUserId}`;
+            activeSubscriptions.delete(oldDest);
+          } catch (error) {
+            console.warn("⚠️ Error unsubscribing:", error);
+          }
+          currentSubscription = null;
+        }
+      }
 
       console.log(
         `🔔 Subscribing to: ${destination} for user: ${currentUserId}`
@@ -322,7 +338,7 @@ export function subscribeToChat(
           try {
             console.log(`🔔 Attempting to subscribe to: ${destination}`);
 
-            currentSubscription = stompClient!.subscribe(
+            const subscription = stompClient!.subscribe(
               destination,
               (message: { body: string }) => {
                 console.log(
@@ -349,6 +365,7 @@ export function subscribeToChat(
                     id: parsedMessage.id,
                     senderId: parsedMessage.senderId,
                     recipientId: parsedMessage.recipientId,
+                    groupId: parsedMessage.groupId,
                     content: parsedMessage.content,
                     chatType: parsedMessage.chatType,
                     createdAt: parsedMessage.createdAt,
@@ -367,14 +384,23 @@ export function subscribeToChat(
               { id: subscriptionId }
             );
 
-            if (currentSubscription) {
+            // Store the subscription
+            activeSubscriptions.set(destination, subscription);
+            
+            // For private messages, also set the legacy currentSubscription
+            if (!isGroup) {
+              currentSubscription = subscription;
+            }
+
+            if (subscription) {
               console.log(
                 `✅ Subscription created with ID: ${
-                  currentSubscription.id || subscriptionId
+                  subscription.id || subscriptionId
                 }`
               );
               console.log(`✅ Successfully subscribed to: ${destination}`);
-              resolve(currentSubscription);
+              console.log(`🗺️ Active subscriptions: ${Array.from(activeSubscriptions.keys()).join(', ')}`);
+              resolve(subscription);
             } else {
               reject(new Error("Failed to create subscription"));
             }
@@ -394,7 +420,19 @@ export function subscribeToChat(
 export function disconnectWebSocket() {
   console.log("🔌 Disconnecting WebSocket...");
 
-  // Unsubscribe from current subscription
+  // Unsubscribe from all active subscriptions
+  console.log(`🔄 Unsubscribing from ${activeSubscriptions.size} active subscriptions`);
+  activeSubscriptions.forEach((subscription, destination) => {
+    console.log(`🔄 Unsubscribing from: ${destination}`);
+    try {
+      subscription.unsubscribe();
+    } catch (error) {
+      console.warn(`⚠️ Error unsubscribing from ${destination}:`, error);
+    }
+  });
+  activeSubscriptions.clear();
+
+  // Unsubscribe from current subscription (legacy)
   if (currentSubscription) {
     console.log("🔄 Unsubscribing from current subscription");
     try {
@@ -448,11 +486,35 @@ export function disconnectWebSocket() {
   connectionPromise = null;
 }
 
+// Function to unsubscribe from a specific destination
+export function unsubscribeFromDestination(destination: string) {
+  const subscription = activeSubscriptions.get(destination);
+  if (subscription) {
+    console.log(`🔄 Unsubscribing from specific destination: ${destination}`);
+    try {
+      subscription.unsubscribe();
+      activeSubscriptions.delete(destination);
+      console.log(`✅ Successfully unsubscribed from: ${destination}`);
+      
+      // If this was the private subscription, also clear currentSubscription
+      if (destination === `/topic/private/${currentUserId}`) {
+        currentSubscription = null;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error unsubscribing from ${destination}:`, error);
+    }
+  } else {
+    console.log(`ℹ️ No active subscription found for: ${destination}`);
+  }
+}
+
 // Debug function to check connection status
 export function getConnectionStatus() {
   return {
     connected: stompClient?.connected || false,
     hasSubscription: currentSubscription !== null,
+    activeSubscriptionsCount: activeSubscriptions.size,
+    activeDestinations: Array.from(activeSubscriptions.keys()),
     clientExists: stompClient !== null,
     currentUserId,
     isConnecting,

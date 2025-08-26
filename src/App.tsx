@@ -9,6 +9,7 @@ import {
   connectWebSocket,
   disconnectWebSocket,
   subscribeToChat,
+  unsubscribeFromDestination,
   waitForConnection,
   getConnectionStatus,
   testWebSocketConnection,
@@ -99,19 +100,19 @@ function App() {
   useEffect(() => {
     console.log(`Setting up WebSocket connection for user: ${currentUser.id}`);
 
-    let globalSubscription: any = null;
+    let globalPrivateSubscription: any = null;
 
     const handleConnect = async () => {
       console.log("WebSocket connected successfully in App component");
       
       try {
-        // Set up global subscription once when connected
-        console.log("Setting up global message subscription for user:", currentUser.id);
+        // Set up global private message subscription once when connected
+        console.log("Setting up global private message subscription for user:", currentUser.id);
         
-        globalSubscription = await subscribeToChat(
+        globalPrivateSubscription = await subscribeToChat(
           "", // chatId not needed for private messages
           (msg) => {
-            console.log("🔥 RECEIVED MESSAGE IN APP:", msg);
+            console.log("🔥 RECEIVED PRIVATE MESSAGE IN APP:", msg);
             console.log("🔥 Message details:", {
               id: msg.id,
               senderId: msg.senderId,
@@ -122,21 +123,21 @@ function App() {
               createdAt: msg.createdAt,
             });
 
-            // Check if message is relevant to current user
-            const isForCurrentUser = 
-              msg.recipientId === currentUser.id || 
-              msg.senderId === currentUser.id ||
-              (msg.chatType === "GROUP" && msg.groupId); // Accept all group messages for now
+            // Check if private message is relevant to current user
+            const isPrivateForCurrentUser = 
+              msg.chatType === "PRIVATE" && (
+                msg.recipientId === currentUser.id || 
+                msg.senderId === currentUser.id
+              );
 
-            if (!isForCurrentUser && msg.chatType !== "GROUP") {
-              console.log("Message not for current user, ignoring");
+            if (!isPrivateForCurrentUser) {
+              console.log("Private message not for current user, ignoring");
               return;
             }
 
-            console.log("✅ Message is for current user, adding to UI");
+            console.log("✅ Private message is for current user, adding to UI");
             
-            // Add all messages for current user to wsMessages
-            // The ChatWindow component will filter based on selected user
+            // Add message to wsMessages
             setWsMessages((prev) => {
               // Check for duplicates
               const isDuplicate = prev.some((existingMsg) => {
@@ -167,16 +168,16 @@ function App() {
                 createdAt: msg.createdAt || new Date().toISOString(),
               };
 
-              console.log("Adding new message to UI:", newMessage);
+              console.log("Adding new private message to UI:", newMessage);
               return [...prev, newMessage];
             });
           },
           false // false = private messages
         );
 
-        console.log("Global message subscription established successfully");
+        console.log("Global private message subscription established successfully");
       } catch (error) {
-        console.error("Failed to establish global subscription:", error);
+        console.error("Failed to establish global private subscription:", error);
       }
     };
 
@@ -193,9 +194,9 @@ function App() {
 
     return () => {
       console.log("Cleaning up WebSocket connection and subscription");
-      if (globalSubscription) {
+      if (globalPrivateSubscription) {
         try {
-          globalSubscription.unsubscribe();
+          globalPrivateSubscription.unsubscribe();
         } catch (error) {
           console.warn("Error unsubscribing:", error);
         }
@@ -203,6 +204,98 @@ function App() {
       disconnectWebSocket();
     };
   }, [currentUser.id]); // Only depend on currentUser.id, not selectedUser
+
+  // Set up group subscription when a group is selected
+  useEffect(() => {
+    let groupSubscription: any = null;
+
+    const setupGroupSubscription = async () => {
+      if (selectedUser?.isGroup) {
+        try {
+          console.log(`Setting up group subscription for group: ${selectedUser.id}`);
+          
+          groupSubscription = await subscribeToChat(
+            selectedUser.id, // Group ID for group messages
+            (msg) => {
+              console.log("🔥 RECEIVED GROUP MESSAGE:", msg);
+              console.log("🔥 Group message details:", {
+                id: msg.id,
+                senderId: msg.senderId,
+                groupId: msg.groupId,
+                currentUserId: currentUser.id,
+                content: msg.content,
+                chatType: msg.chatType,
+                createdAt: msg.createdAt,
+              });
+
+              // Only accept group messages for the current group
+              if (msg.chatType === "GROUP" && msg.groupId === selectedUser.id) {
+                console.log("✅ Group message is for current group, adding to UI");
+                
+                // Add message to wsMessages
+                setWsMessages((prev) => {
+                  // Check for duplicates
+                  const isDuplicate = prev.some((existingMsg) => {
+                    if (msg.id && existingMsg.id === msg.id) {
+                      return true;
+                    }
+
+                    const timeDiff = Math.abs(
+                      new Date(existingMsg.createdAt ?? new Date().toISOString()).getTime() -
+                      new Date(msg.createdAt || new Date().toISOString()).getTime()
+                    );
+
+                    return (
+                      existingMsg.senderId === msg.senderId &&
+                      existingMsg.content === msg.content &&
+                      timeDiff < 2000 // 2 seconds tolerance
+                    );
+                  });
+
+                  if (isDuplicate) {
+                    console.log("Duplicate group message detected, skipping");
+                    return prev;
+                  }
+
+                  const newMessage = {
+                    ...msg,
+                    id: msg.id || crypto.randomUUID(),
+                    createdAt: msg.createdAt || new Date().toISOString(),
+                  };
+
+                  console.log("Adding new group message to UI:", newMessage);
+                  return [...prev, newMessage];
+                });
+              } else {
+                console.log("Group message not for current group, ignoring");
+              }
+            },
+            true // true = group messages
+          );
+
+          console.log(`Group subscription established for group: ${selectedUser.id}`);
+        } catch (error) {
+          console.error(`Failed to establish group subscription for ${selectedUser.id}:`, error);
+        }
+      }
+    };
+
+    setupGroupSubscription();
+
+    return () => {
+      if (groupSubscription) {
+        console.log(`Cleaning up group subscription for group: ${selectedUser?.id}`);
+        try {
+          // Use the specific unsubscribe function for the group destination
+          if (selectedUser?.isGroup) {
+            unsubscribeFromDestination(`/topic/chat/${selectedUser.id}`);
+          }
+        } catch (error) {
+          console.warn("Error unsubscribing from group:", error);
+        }
+      }
+    };
+  }, [selectedUser, currentUser.id]); // Re-run when selectedUser changes
 
   // Clear messages when selectedUser changes and update filtered messages
   useEffect(() => {
