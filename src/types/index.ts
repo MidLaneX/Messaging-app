@@ -13,6 +13,7 @@ export type ChatType = "PRIVATE" | "GROUP";
 export interface Message {
   id: string; // UUID string
   senderId: string;
+  senderName?: string; // For displaying sender names in groups
   recipientId?: string;
   groupId?: string;
   recipientIds?: string[];

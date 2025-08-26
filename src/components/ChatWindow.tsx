@@ -25,6 +25,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Function to deduplicate and merge messages prioritizing WebSocket messages
+  const getMergedMessages = () => {
+    if (!selectedUser) return [];
+
+    // Create a map to track unique messages by content + timestamp + sender
+    const messageMap = new Map<string, Message>();
+
+    // First add API messages
+    messages.forEach(msg => {
+      const key = `${msg.senderId}-${msg.content}-${new Date(msg.createdAt || "").getTime()}`;
+      messageMap.set(key, msg);
+    });
+
+    // Then add WebSocket messages (they will overwrite API messages if they're the same)
+    wsMessages.forEach(msg => {
+      const key = `${msg.senderId}-${msg.content}-${new Date(msg.createdAt || "").getTime()}`;
+      // WebSocket messages take precedence
+      messageMap.set(key, msg);
+    });
+
+    // Convert back to array and sort by timestamp
+    return Array.from(messageMap.values()).sort(
+      (a, b) =>
+        new Date(a.createdAt || "").getTime() -
+        new Date(b.createdAt || "").getTime()
+    );
+  };
+
   const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -46,14 +74,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     scrollToBottom('auto');
   }, [messages, wsMessages]);
 
+  // Get merged and deduplicated messages
+  const mergedMessages = getMergedMessages();
+
   // Ensure we're at bottom after component renders
   useEffect(() => {
-    if (selectedUser && (messages.length > 0 || wsMessages.length > 0)) {
+    if (selectedUser && mergedMessages.length > 0) {
       // Small delay to ensure DOM is fully rendered
       const timer = setTimeout(() => scrollToBottom('auto'), 50);
       return () => clearTimeout(timer);
     }
-  }, [selectedUser, messages.length, wsMessages.length]);
+  }, [selectedUser, mergedMessages.length]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,10 +224,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {process.env.NODE_ENV === "development" && (
             <div className="bg-blue-100 p-2 mb-2 text-xs rounded">
               <div>API Messages: {messages.length}</div>
-              <div>Total WS Messages: {wsMessages.length}</div>
-              <div>Relevant WS Messages: {wsMessages.length}</div>
-              <div>Total Displayed: {[...messages, ...wsMessages].length}</div>
-              <div>Selected User: {selectedUser?.id || 'none'}</div>
+              <div>WS Messages (all): {wsMessages.length}</div>
+              <div>WS Messages (filtered): {wsMessages.length}</div>
+              <div>Combined Messages: {mergedMessages.length}</div>
+              <div>Selected User: {selectedUser?.id || 'none'} ({selectedUser?.isGroup ? 'Group' : 'User'})</div>
               <div>
                 Last WS Message:{" "}
                 {wsMessages.length > 0
@@ -205,10 +236,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     ).toLocaleTimeString()
                   : "none"}
               </div>
+              <div>
+                Last API Message:{" "}
+                {messages.length > 0
+                  ? new Date(
+                      messages[messages.length - 1]?.createdAt || ""
+                    ).toLocaleTimeString()
+                  : "none"}
+              </div>
             </div>
           )}
 
-          {messages.length === 0 && wsMessages.length === 0 ? (
+          {mergedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-whatsapp-gray italic">
                 No messages yet. Start the conversation!
@@ -216,13 +255,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {[...messages, ...wsMessages]
-                .sort(
-                  (a, b) =>
-                    new Date(a.createdAt || "").getTime() -
-                    new Date(b.createdAt || "").getTime()
-                )
-                .map((message, index, arr) => {
+              {mergedMessages.map((message, index, arr) => {
                   const isCurrentUser = message.senderId === currentUser.id;
                   const previousMessage =
                     index > 0 ? arr[index - 1] : undefined;
