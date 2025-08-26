@@ -251,97 +251,72 @@ function App() {
     };
   }, [currentUser.id]); // Only depend on currentUser.id, not selectedUser
 
-  // Set up group subscription when a group is selected
+  // Global group subscriptions for all groups to update last messages
   useEffect(() => {
-    let groupSubscription: any = null;
+    const groupConversations = conversations.filter((conv) => conv.isGroup);
+    const subscriptions: any[] = [];
 
-    const setupGroupSubscription = async () => {
-      if (selectedUser?.isGroup) {
+    const setupGlobalGroupSubscriptions = async () => {
+      for (const group of groupConversations) {
         try {
-          console.log(`Setting up group subscription for group: ${selectedUser.id}`);
-          
-          groupSubscription = await subscribeToChat(
-            selectedUser.id, // Group ID for group messages
+          const subscription = await subscribeToChat(
+            group.id,
             (msg) => {
-              console.log("🔥 RECEIVED GROUP MESSAGE:", msg);
-              console.log("🔥 Group message details:", {
-                id: msg.id,
-                senderId: msg.senderId,
-                groupId: msg.groupId,
-                currentUserId: currentUser.id,
-                content: msg.content,
-                chatType: msg.chatType,
-                createdAt: msg.createdAt,
-              });
-
-              // Only accept group messages for the current group
-              if (msg.chatType === "GROUP" && msg.groupId === selectedUser.id) {
-                console.log("✅ Group message is for current group, adding to UI");
+              if (msg.chatType === "GROUP" && msg.groupId === group.id) {
+                console.log(`🔥 RECEIVED GROUP MESSAGE for ${group.id}:`, msg);
                 
-                // Add message to wsMessages
                 setWsMessages((prev) => {
-                  // Check for duplicates
                   const isDuplicate = prev.some((existingMsg) => {
-                    if (msg.id && existingMsg.id === msg.id) {
-                      return true;
-                    }
-
+                    if (msg.id && existingMsg.id === msg.id) return true;
                     const timeDiff = Math.abs(
                       new Date(existingMsg.createdAt ?? new Date().toISOString()).getTime() -
-                      new Date(msg.createdAt || new Date().toISOString()).getTime()
+                        new Date(msg.createdAt || new Date().toISOString()).getTime()
                     );
-
                     return (
                       existingMsg.senderId === msg.senderId &&
                       existingMsg.content === msg.content &&
-                      timeDiff < 2000 // 2 seconds tolerance
+                      existingMsg.groupId === msg.groupId &&
+                      timeDiff < 2000
                     );
                   });
-
+                  
                   if (isDuplicate) {
                     console.log("Duplicate group message detected, skipping");
                     return prev;
                   }
-
+                  
                   const newMessage = {
                     ...msg,
                     id: msg.id || crypto.randomUUID(),
                     createdAt: msg.createdAt || new Date().toISOString(),
                   };
-
+                  
                   console.log("Adding new group message to UI:", newMessage);
                   return [...prev, newMessage];
                 });
-              } else {
-                console.log("Group message not for current group, ignoring");
               }
             },
-            true // true = group messages
+            true
           );
-
-          console.log(`Group subscription established for group: ${selectedUser.id}`);
+          subscriptions.push({ subscription, groupId: group.id });
         } catch (error) {
-          console.error(`Failed to establish group subscription for ${selectedUser.id}:`, error);
+          console.error(`Failed to subscribe to group ${group.id}:`, error);
         }
       }
     };
 
-    setupGroupSubscription();
+    setupGlobalGroupSubscriptions();
 
     return () => {
-      if (groupSubscription) {
-        console.log(`Cleaning up group subscription for group: ${selectedUser?.id}`);
+      subscriptions.forEach(({ subscription, groupId }) => {
         try {
-          // Use the specific unsubscribe function for the group destination
-          if (selectedUser?.isGroup) {
-            unsubscribeFromDestination(`/topic/chat/${selectedUser.id}`);
-          }
+          unsubscribeFromDestination(`/topic/chat/${groupId}`);
         } catch (error) {
-          console.warn("Error unsubscribing from group:", error);
+          console.warn(`Error unsubscribing from group ${groupId}:`, error);
         }
-      }
+      });
     };
-  }, [selectedUser, currentUser.id]); // Re-run when selectedUser changes
+  }, [conversations]);
 
   // Clear messages when selectedUser changes and update filtered messages
   useEffect(() => {
@@ -409,7 +384,7 @@ function App() {
 
       <div className="flex h-full">
         <UserList
-          conversations={conversations}
+          conversations={enhancedConversations}
           selectedUser={selectedUser}
           onUserSelect={setSelectedUser}
           currentUserId={currentUser.id}
