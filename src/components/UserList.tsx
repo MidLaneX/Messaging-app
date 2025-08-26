@@ -191,11 +191,7 @@ const UserList: React.FC<UserListProps> = ({
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-medium text-gray-900 truncate text-base">
                         {conversation.name}
-                        {conversation.isGroup && (
-                          <span className="ml-1 text-xs text-gray-500">
-                            ({conversation.participants?.length || 0} members)
-                          </span>
-                        )}
+                    
                       </h3>
                       <span className="text-xs text-green-700 ml-2 flex-shrink-0">
                         {conversation.lastMessage && conversation.lastMessage.createdAt
