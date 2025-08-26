@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./App.css";
 import UserList from "./components/UserList";
 import ChatWindow from "./components/ChatWindow";
 import { useRecentUsers } from "./hooks";
-import { APP_CONFIG, UI_CONFIG } from "./constants";
+import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import {
   connectWebSocket,
@@ -23,8 +23,6 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
-  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
-  const typingTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Hardcoded current user
   const currentUser: User = {
@@ -42,38 +40,6 @@ function App() {
     loadMore,
     error,
   } = useRecentUsers();
-
-  // Update recent users with latest WebSocket messages
-  const recentUsersWithLatestMessages = useMemo(() => {
-    return recentUsers.map(user => {
-      // Find the most recent message for this user from WebSocket messages
-      const userWsMessages = wsMessages.filter(msg => 
-        (msg.senderId === user.id && msg.recipientId === currentUser.id) ||
-        (msg.senderId === currentUser.id && msg.recipientId === user.id)
-      );
-      
-      if (userWsMessages.length > 0) {
-        // Get the most recent WebSocket message
-        const latestWsMessage = userWsMessages.sort((a, b) => 
-          new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-        )[0];
-        
-        // Compare with existing lastMessage to see which is newer
-        const existingMessageTime = user.lastMessage?.createdAt ? 
-          new Date(user.lastMessage.createdAt).getTime() : 0;
-        const wsMessageTime = new Date(latestWsMessage.createdAt || '').getTime();
-        
-        if (wsMessageTime > existingMessageTime) {
-          return {
-            ...user,
-            lastMessage: latestWsMessage
-          };
-        }
-      }
-      
-      return user;
-    });
-  }, [recentUsers, wsMessages, currentUser.id]);
 
   // Update connection status periodically
   useEffect(() => {
@@ -135,23 +101,6 @@ function App() {
         globalSubscription = await subscribeToChat(
           "", // chatId not needed for private messages
           (msg) => {
-            // Handle typing indicator
-            if (msg.type === "TYPING") {
-              setTypingUsers((prev) => ({ ...prev, [msg.senderId]: true }));
-              // Clear existing timeout
-              if (typingTimeouts.current[msg.senderId]) {
-                clearTimeout(typingTimeouts.current[msg.senderId]);
-              }
-              // Setup timeout to clear typing indicator
-              const timeout = setTimeout(() => {
-                setTypingUsers((prev) => {
-                  const { [msg.senderId]: _, ...rest } = prev;
-                  return rest;
-                });
-              }, UI_CONFIG.TYPING_INDICATOR_TIMEOUT);
-              typingTimeouts.current[msg.senderId] = timeout;
-              return;
-            }
             console.log("🔥 RECEIVED MESSAGE IN APP:", msg);
             console.log("🔥 Message details:", {
               id: msg.id,
@@ -284,18 +233,17 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-100">
-
+   
 
       <div className="flex h-full">
         <UserList
-          users={recentUsersWithLatestMessages}
+          users={recentUsers}
           selectedUser={selectedUser}
           onUserSelect={setSelectedUser}
           currentUserId={currentUser.id}
           loading={loading}
           hasMore={hasMore}
           onLoadMore={loadMore}
-          typingUsers={typingUsers}
         />
         <ChatWindow
           selectedUser={selectedUser}
@@ -304,7 +252,6 @@ function App() {
           wsMessages={filteredWsMessages}
           setWsMessages={setWsMessages}
           loadingMessages={loadingMessages}
-          typingUsers={typingUsers}
         />
       </div>
     </div>

@@ -12,17 +12,14 @@ interface ChatWindowProps {
   messages: Message[];
   wsMessages: Message[];
   setWsMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  typingUsers: Record<string, boolean>;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   selectedUser,
   currentUser,
-  loadingMessages,
   messages,
   wsMessages, // Now pre-filtered for the selected user
   setWsMessages,
-  typingUsers,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -137,10 +134,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div>
             <h3 className="font-medium text-lg">{selectedUser.name}</h3>
             <p className="text-sm text-green-100">
-              {typingUsers[selectedUser.id]
-                ? 'typing...'
-                : selectedUser.isOnline
-                ? 'online'
+              {selectedUser.isOnline
+                ? "online"
                 : formatLastSeenText(selectedUser.lastSeen)}
             </p>
           </div>

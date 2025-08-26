@@ -13,6 +13,7 @@ export interface ChatMessage {
 
 let stompClient: CompatClient | null = null;
 let currentSubscription: any = null;
+let statusSubscription: any = null;
 let subscriptionCounter = 0;
 let isConnecting = false;
 let currentUserId: string | null = null;
@@ -198,6 +199,67 @@ export function waitForConnection(timeout: number = 5000): Promise<void> {
   });
 }
 
+export function subscribeToStatusUpdates(onStatusUpdate: (status: any) => void): Promise<any> {
+  return waitForConnection(15000)
+    .then(() => {
+      if (!stompClient || !stompClient.connected) {
+        throw new Error("STOMP client not connected for status subscription");
+      }
+
+      // Unsubscribe from previous status subscription if it exists
+      if (statusSubscription) {
+        console.log("🔄 Unsubscribing from previous status subscription");
+        try {
+          statusSubscription.unsubscribe();
+        } catch (error) {
+          console.warn("⚠️ Error unsubscribing from status:", error);
+        }
+        statusSubscription = null;
+      }
+
+      const destination = "/topic/status";
+      console.log(`🔔 Subscribing to status updates: ${destination}`);
+
+      subscriptionCounter++;
+      const subscriptionId = `status-sub-${Date.now()}-${subscriptionCounter}`;
+
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            statusSubscription = stompClient!.subscribe(
+              destination,
+              (message: { body: string }) => {
+                console.log(`📡 Status update received:`, message.body);
+                try {
+                  const statusUpdate = JSON.parse(message.body);
+                  console.log(`📡 Parsed status update:`, statusUpdate);
+                  onStatusUpdate(statusUpdate);
+                } catch (error) {
+                  console.error("❌ Error parsing status update:", error, message.body);
+                }
+              },
+              { id: subscriptionId }
+            );
+
+            if (statusSubscription) {
+              console.log(`✅ Status subscription created with ID: ${subscriptionId}`);
+              resolve(statusSubscription);
+            } else {
+              reject(new Error("Failed to create status subscription"));
+            }
+          } catch (error) {
+            console.error("❌ Error creating status subscription:", error);
+            reject(error);
+          }
+        }, 500);
+      });
+    })
+    .catch((error) => {
+      console.error("❌ Error creating status subscription:", error);
+      throw error;
+    });
+}
+
 export function subscribeToChat(
   chatId: string,
   onMessage: (msg: any) => void,
@@ -341,6 +403,17 @@ export function disconnectWebSocket() {
       console.warn("⚠️ Error during unsubscribe:", error);
     }
     currentSubscription = null;
+  }
+
+  // Unsubscribe from status subscription
+  if (statusSubscription) {
+    console.log("🔄 Unsubscribing from status subscription");
+    try {
+      statusSubscription.unsubscribe();
+    } catch (error) {
+      console.warn("⚠️ Error during status unsubscribe:", error);
+    }
+    statusSubscription = null;
   }
 
   // Disconnect STOMP client

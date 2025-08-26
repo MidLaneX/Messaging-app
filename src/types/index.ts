@@ -45,6 +45,12 @@ export interface OnlineStatus {
   [userId: string]: boolean;
 }
 
+export interface StatusUpdate {
+  userId: string;
+  status: "ONLINE" | "OFFLINE";
+  lastSeen?: string | null; // ISO string timestamp
+}
+
 export interface MessageStatus {
   id: string;
   messageId: string;
