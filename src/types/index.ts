@@ -4,6 +4,8 @@ export interface User {
   avatar?: string;
   lastSeen?: Date;
   isOnline: boolean;
+  isGroup?: boolean;
+  participants?: string[]; // For groups
 }
 export type MessageType = "TEXT" | "IMAGE" | "FILE" | "AUDIO";
 export type ChatType = "PRIVATE" | "GROUP";

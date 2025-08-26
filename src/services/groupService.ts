@@ -6,9 +6,14 @@ import { APP_CONFIG, API_ENDPOINTS } from '../constants';
 export interface ApiGroup {
   id: string;
   name: string;
+  description?: string;
   avatarUrl?: string;
   lastMessage?: any;
   unreadCount: number;
+  memberCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  members?: string[]; // Array of member user IDs
 }
 
 class GroupService {
@@ -25,7 +30,7 @@ class GroupService {
   private convertApiGroup(api: ApiGroup): ChatRoom {
     return {
       id: api.id,
-      participants: [],
+      participants: api.members || [],
       isGroup: true,
       name: api.name,
       avatar: api.avatarUrl,
@@ -35,10 +40,21 @@ class GroupService {
   }
 
   async getUserGroups(userId: string): Promise<ChatRoom[]> {
-    const res: AxiosResponse<ApiGroup[]> = await this.axiosInstance.get(
-      API_ENDPOINTS.USER_GROUPS(userId)
-    );
-    return res.data.map(this.convertApiGroup);
+    try {
+      console.log(`Fetching groups for user: ${userId}`);
+       const res = await this.axiosInstance.get(
+         API_ENDPOINTS.USER_GROUPS(userId)
+       );
+       // Handle both array responses and paginated SpringPageResponse
+       const data = res.data as ApiGroup[] | { content: ApiGroup[] };
+       const groups: ApiGroup[] = Array.isArray(data)
+         ? data
+         : (data.content || []);
+       return groups.map(this.convertApiGroup);
+    } catch (error) {
+      console.error(`Failed to fetch groups for user ${userId}:`, error);
+      throw error;
+    }
   }
 }
 

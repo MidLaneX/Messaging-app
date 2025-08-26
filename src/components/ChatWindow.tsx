@@ -62,14 +62,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const message: Message = {
         id: messageId,
         senderId: currentUser.id,
-        recipientId: selectedUser.id,
+        ...(selectedUser.isGroup 
+          ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+          : { recipientId: selectedUser.id, chatType: "PRIVATE" as const }
+        ),
         createdAt: new Date().toISOString(),
         content: newMessage.trim(),
-        chatType: "PRIVATE",
         type: "TEXT" as Message["type"],
       };
 
       console.log("Sending message for user:", currentUser.id);
+      console.log("Message type:", selectedUser.isGroup ? "GROUP" : "PRIVATE");
 
       // Optimistically add message to UI
       setWsMessages((prev) => [...prev, message]);
@@ -81,9 +84,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       // Send via WebSocket
       const wsMessage = {
         senderId: currentUser.id,
-        recipientId: selectedUser.id,
+        ...(selectedUser.isGroup 
+          ? { groupId: selectedUser.id, chatType: "GROUP" }
+          : { recipientId: selectedUser.id, chatType: "PRIVATE" }
+        ),
         content: newMessage.trim(),
-        chatType: "PRIVATE",
         type: "TEXT",
       };
 
@@ -125,16 +130,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <div className="flex items-center">
           <div className="relative mr-4">
             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-lg">
-              {selectedUser.avatar || "👤"}
+              {selectedUser.avatar || (selectedUser.isGroup ? "👥" : "👤")}
             </div>
-            {selectedUser.isOnline && (
+            {!selectedUser.isGroup && selectedUser.isOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
+            )}
+            {selectedUser.isGroup && (
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-400 border-2 border-white rounded-full"></div>
             )}
           </div>
           <div>
-            <h3 className="font-medium text-lg">{selectedUser.name}</h3>
+            <h3 className="font-medium text-lg">
+              {selectedUser.name}
+              {selectedUser.isGroup && (
+                <span className="ml-1 text-sm text-green-100">
+                  ({selectedUser.participants?.length || 0} members)
+                </span>
+              )}
+            </h3>
             <p className="text-sm text-green-100">
-              {selectedUser.isOnline
+              {selectedUser.isGroup
+                ? `Group • ${selectedUser.participants?.length || 0} members`
+                : selectedUser.isOnline
                 ? "online"
                 : formatLastSeenText(selectedUser.lastSeen)}
             </p>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import "./App.css";
 import UserList from "./components/UserList";
 import ChatWindow from "./components/ChatWindow";
-import { useRecentUsers } from "./hooks";
+import { useConversations } from "./hooks";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import {
@@ -32,14 +32,14 @@ function App() {
     avatar: "😊",
   };
 
-  // Use the new recent users hook
+  // Use the new conversations hook
   const {
-    recentUsers = [], // Default to empty array
+    conversations = [], // Default to empty array
     loading = false,
     hasMore = false,
     loadMore,
     error,
-  } = useRecentUsers();
+  } = useConversations();
 
   // Update connection status periodically
   useEffect(() => {
@@ -54,16 +54,25 @@ function App() {
     const fetchMessages = async () => {
       if (!selectedUser) {
         setMessages([]);
-        setWsMessages([]);
         return;
       }
       setLoadingMessages(true);
       try {
-        // API: /api/users/{user1Id}/chats/{user2Id}?page=0&size=50
         const axios = (await import("axios")).default;
-        const res = await axios.get(
-          `${APP_CONFIG.API_BASE_URL}/api/users/${currentUser.id}/chats/${selectedUser.id}?page=0&size=50`
-        );
+        let res;
+        
+        if (selectedUser.isGroup) {
+          // For groups, use group messages endpoint
+          res = await axios.get(
+            `${APP_CONFIG.API_BASE_URL}/api/groups/${selectedUser.id}/messages?page=0&size=50`
+          );
+        } else {
+          // For private chats, use existing endpoint
+          res = await axios.get(
+            `${APP_CONFIG.API_BASE_URL}/api/users/${currentUser.id}/chats/${selectedUser.id}?page=0&size=50`
+          );
+        }
+        
         // Map API response to Message[] with timestamp as Date
         setMessages(
           (res.data.content || [])
@@ -77,6 +86,7 @@ function App() {
             }))
         );
       } catch (err) {
+        console.error('Error fetching messages:', err);
         setMessages([]);
       } finally {
         setLoadingMessages(false);
@@ -115,9 +125,10 @@ function App() {
             // Check if message is relevant to current user
             const isForCurrentUser = 
               msg.recipientId === currentUser.id || 
-              msg.senderId === currentUser.id;
+              msg.senderId === currentUser.id ||
+              (msg.chatType === "GROUP" && msg.groupId); // Accept all group messages for now
 
-            if (!isForCurrentUser) {
+            if (!isForCurrentUser && msg.chatType !== "GROUP") {
               console.log("Message not for current user, ignoring");
               return;
             }
@@ -200,8 +211,10 @@ function App() {
     // Clear old WebSocket messages to prevent memory bloat
     // Keep only messages relevant to all potential conversations
     setWsMessages(prev => prev.filter(msg => {
-      // Keep messages where current user is involved
-      return msg.senderId === currentUser.id || msg.recipientId === currentUser.id;
+      // Keep messages where current user is involved (private or group)
+      return msg.senderId === currentUser.id || 
+             msg.recipientId === currentUser.id ||
+             (msg.chatType === "GROUP" && msg.groupId); // Keep all group messages for now
     }));
   }, [selectedUser, currentUser.id]);
 
@@ -210,10 +223,16 @@ function App() {
     if (!selectedUser) return [];
     
     return wsMessages.filter((msg) => {
-      const isRelevantMessage =
-        (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
-        (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
-      return isRelevantMessage;
+      if (selectedUser.isGroup) {
+        // For groups, show messages with matching groupId
+        return msg.chatType === "GROUP" && msg.groupId === selectedUser.id;
+      } else {
+        // For private chats, show messages between current user and selected user
+        const isRelevantMessage =
+          (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
+          (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
+        return isRelevantMessage;
+      }
     });
   }, [wsMessages, selectedUser, currentUser.id]);
 
@@ -233,11 +252,25 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-100">
-   
+      {/* Debug Panel - Only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-sm">
+          <strong>Debug Info:</strong> 
+          Conversations: {conversations.length} | 
+          Loading: {loading ? 'Yes' : 'No'} | 
+          Error: {error || 'None'}
+          {conversations.length > 0 && (
+            <div className="mt-1">
+              Users: {conversations.filter(c => !c.isGroup).length} | 
+              Groups: {conversations.filter(c => c.isGroup).length}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex h-full">
         <UserList
-          users={recentUsers}
+          conversations={conversations}
           selectedUser={selectedUser}
           onUserSelect={setSelectedUser}
           currentUserId={currentUser.id}
