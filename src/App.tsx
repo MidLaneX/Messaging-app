@@ -64,7 +64,7 @@ function App() {
         if (selectedUser.isGroup) {
           // For groups, use group messages endpoint
           res = await axios.get(
-            `${APP_CONFIG.API_BASE_URL}/api/groups/${selectedUser.id}/messages?page=0&size=50`
+            `${APP_CONFIG.API_BASE_URL}/api/chat/group/${selectedUser.id}?page=0&size=50`
           );
         } else {
           // For private chats, use existing endpoint

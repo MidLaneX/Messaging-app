@@ -39,6 +39,8 @@ export const API_ENDPOINTS = {
     `/api/messages/${userId1}/${userId2}`,
   MARK_READ: (messageId: string) => `/api/messages/${messageId}/read`,
   USER_GROUPS: (userId: string) => `/api/groups/user/${userId}`,
+  GROUP_MESSAGES: (groupId: string) => `/api/chat/group/${groupId}`,
+  SEND_GROUP_MESSAGE: (groupId: string) => `/api/groups/${groupId}/messages`,
 } as const;
 
 export const ROUTES = {
