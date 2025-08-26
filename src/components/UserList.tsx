@@ -151,12 +151,15 @@ const UserList: React.FC<UserListProps> = ({
                   };
                   onUserSelect(user);
                 } else {
+                  // Convert group conversation into a User object with group metadata
                   const groupAsUser: User = {
                     id: conversation.id,
                     name: conversation.name,
                     avatar: conversation.avatar,
                     lastSeen: undefined,
                     isOnline: false,
+                    isGroup: true,
+                    participants: conversation.participants,
                   };
                   onUserSelect(groupAsUser);
                 }
