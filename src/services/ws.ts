@@ -1,5 +1,6 @@
 import SockJS from 'sockjs-client';
 import { CompatClient, Stomp } from '@stomp/stompjs';
+import { APP_CONFIG } from '../constants';
 
 export interface ChatMessage {
   senderId: string;
@@ -50,11 +51,11 @@ export function connectWebSocket(
     currentUserId = userId;
 
     console.log(
-      `🔌 Connecting WebSocket for user: ${userId} to backend at localhost:8090`
+      `🔌 Connecting WebSocket for user: ${userId} to backend at ${APP_CONFIG.API_BASE_URL}`
     );
 
     // Create socket with factory function for proper reconnection support
-    const socketFactory = () => new SockJS("http://localhost:8090/ws");
+    const socketFactory = () => new SockJS(`${APP_CONFIG.API_BASE_URL}/ws`);
     stompClient = Stomp.over(socketFactory);
 
     // Configure STOMP client - disable debug in production
