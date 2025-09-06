@@ -331,47 +331,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div 
-      className="flex-1 flex flex-col h-full bg-gradient-to-b from-emerald-50 to-white"
+      className="flex-1 flex flex-col h-full bg-gray-50"
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
       {/* Chat Header */}
-      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-sm border-b border-emerald-700 px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-sm border-b border-emerald-700 px-4 py-3 flex items-center justify-between">
         {!isSearchVisible ? (
           <>
             <div className="flex items-center">
-              <div className="relative mr-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-lg font-semibold text-white shadow-md">
+              <div className="relative mr-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-md">
                   {selectedUser.avatar || (selectedUser.isGroup ? "👥" : selectedUser.name.charAt(0).toUpperCase())}
                 </div>
                 {!selectedUser.isGroup && selectedUser.isOnline && (
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-3 border-white rounded-full shadow-sm"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow-sm"></div>
                 )}
                 {selectedUser.isGroup && (
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-3 border-white rounded-full shadow-sm"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                 )}
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-white leading-tight">{selectedUser.name}</h3>
+                <h3 className="font-medium text-lg text-white leading-tight">{selectedUser.name}</h3>
                 <p className="text-sm text-emerald-100">
                   {selectedUser.isGroup
                     ? `${selectedUser.memberCount || selectedUser.participants?.length || 0} members`
                     : selectedUser.isOnline
-                    ? (
-                        <span className="flex items-center">
-                          <span className="w-2 h-2 bg-emerald-300 rounded-full mr-2"></span>
-                          Active now
-                        </span>
-                      )
+                    ? "online"
                     : formatLastSeenText(selectedUser.lastSeen)}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <button
                 onClick={handleSearchToggle}
-                className="p-2 rounded-full hover:bg-emerald-500 transition-colors duration-200 text-white hover:bg-opacity-20"
+                className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
                 title="Search messages"
                 aria-label="Search messages"
               >
@@ -382,7 +377,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={handleMenuToggle}
-                  className="p-2 rounded-full hover:bg-emerald-500 transition-colors duration-200 text-white hover:bg-opacity-20"
+                  className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
                   title="More options"
                   aria-label="More options"
                 >
@@ -417,7 +412,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div className="w-full flex items-center space-x-3">
             <button
               onClick={handleSearchToggle}
-              className="p-2 rounded-full hover:bg-emerald-500 transition-colors text-white hover:bg-opacity-20"
+              className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white"
               title="Close search"
               aria-label="Close search"
             >
@@ -443,15 +438,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-gray-50">
+      <div className="flex-1 overflow-hidden flex flex-col bg-gray-100">
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-6 py-4 space-y-4" 
+          className="flex-1 overflow-y-auto px-4 py-2 space-y-1" 
           style={{ scrollBehavior: 'auto' }}
         >
           {searchQuery && filteredMessages.length > 0 && (
             <div className="text-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
                 {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} found
               </span>
             </div>
@@ -465,11 +460,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 text-lg font-medium">
+                <p className="text-gray-500 text-xl font-medium">
                   {searchQuery ? `No messages found for "${searchQuery}"` : "No messages yet"}
                 </p>
                 {!searchQuery && (
-                  <p className="text-gray-400 text-sm mt-2">
+                  <p className="text-gray-400 text-base mt-2">
                     Start the conversation with a friendly message!
                   </p>
                 )}
@@ -492,6 +487,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     }
                     user={isCurrentUser ? currentUser : selectedUser}
                     previousMessage={previousMessage}
+                    isGroupChat={selectedUser.isGroup}
                   />
                 );
               })}
@@ -517,7 +513,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               type="button"
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100"
+              className="p-3 text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100"
               title="Attach file"
               aria-label="Attach file"
             >
@@ -535,23 +531,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             />
           </div>
 
-          <div className="flex-1 bg-gray-50 rounded-2xl border border-emerald-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200">
-            <div className="flex items-end px-4 py-3">
+          <div className="flex-1 bg-gray-100 rounded-3xl border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200">
+            <div className="flex items-end px-5 py-3">
               <textarea
                 ref={textareaRef}
                 value={newMessage}
                 onChange={handleMessageChange}
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent text-base leading-6 max-h-32"
+                className="flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent text-lg leading-7 max-h-32"
                 rows={1}
                 disabled={isSending}
               />
-              <div className="relative ml-2" ref={emojiPickerRef}>
+              <div className="relative ml-3" ref={emojiPickerRef}>
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                   title="Add emoji"
                   aria-label="Add emoji"
                 >
@@ -572,10 +568,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`p-3 rounded-full transition-all duration-200 ${
+            className={`p-5 rounded-full transition-all duration-200 ${
               newMessage.trim() && !isSending
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
             title={isSending ? "Sending..." : "Send message"}
             aria-label={isSending ? "Sending message" : "Send message"}
