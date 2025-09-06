@@ -28,6 +28,9 @@ class GroupService {
   }
 
   private convertApiGroup(api: ApiGroup): ChatRoom {
+    // Use memberCount if available, otherwise fall back to members array length
+    const participantCount = api.memberCount || (api.members ? api.members.length : 0);
+    
     return {
       id: api.id,
       participants: api.members || [],
@@ -36,6 +39,7 @@ class GroupService {
       avatar: api.avatarUrl,
       lastMessage: api.lastMessage,
       unreadCount: api.unreadCount,
+      memberCount: participantCount, // Add this field to track member count
     };
   }
 
@@ -50,7 +54,25 @@ class GroupService {
        const groups: ApiGroup[] = Array.isArray(data)
          ? data
          : (data.content || []);
-       return groups.map(this.convertApiGroup);
+       
+       // Log the raw API data to debug member count issues
+       console.log('📊 Raw groups data from API:', groups.map(g => ({
+         id: g.id,
+         name: g.name,
+         memberCount: g.memberCount,
+         membersLength: g.members?.length,
+         members: g.members
+       })));
+       
+       const convertedGroups = groups.map(this.convertApiGroup);
+       console.log('📊 Converted groups:', convertedGroups.map(g => ({
+         id: g.id,
+         name: g.name,
+         memberCount: g.memberCount,
+         participantsLength: g.participants.length
+       })));
+       
+       return convertedGroups;
     } catch (error) {
       console.error(`Failed to fetch groups for user ${userId}:`, error);
       throw error;

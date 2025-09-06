@@ -12,7 +12,6 @@ import {
   disconnectWebSocket,
   subscribeToChat,
   unsubscribeFromDestination,
-  waitForConnection,
   getConnectionStatus,
   testWebSocketConnection,
 } from "./services/ws";

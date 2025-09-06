@@ -173,15 +173,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div>
             <h3 className="font-medium text-lg">
               {selectedUser.name}
-              {selectedUser.isGroup && (
-                <span className="ml-1 text-sm text-green-100">
-                  ({selectedUser.participants?.length || 0} members)
-                </span>
-              )}
+            
             </h3>
             <p className="text-sm text-green-100">
-              {selectedUser.isGroup
-                ? `Group • ${selectedUser.participants?.length || 0} members`
+              {selectedUser.isGroup ? (() => {
+                const memberCount = selectedUser.memberCount || selectedUser.participants?.length || 0;
+                console.log(`📊 Group ${selectedUser.name} member info:`, {
+                  memberCount: selectedUser.memberCount,
+                  participantsLength: selectedUser.participants?.length,
+                  finalCount: memberCount,
+                  participants: selectedUser.participants
+                });
+                return `Group • ${memberCount} members`;
+              })()
                 : selectedUser.isOnline
                 ? "online"
                 : formatLastSeenText(selectedUser.lastSeen)}
@@ -220,32 +224,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           className="flex-1 overflow-y-auto p-5" 
           style={{ scrollBehavior: 'auto' }}
         >
-          {/* Debug info */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="bg-blue-100 p-2 mb-2 text-xs rounded">
-              <div>API Messages: {messages.length}</div>
-              <div>WS Messages (all): {wsMessages.length}</div>
-              <div>WS Messages (filtered): {wsMessages.length}</div>
-              <div>Combined Messages: {mergedMessages.length}</div>
-              <div>Selected User: {selectedUser?.id || 'none'} ({selectedUser?.isGroup ? 'Group' : 'User'})</div>
-              <div>
-                Last WS Message:{" "}
-                {wsMessages.length > 0
-                  ? new Date(
-                      wsMessages[wsMessages.length - 1]?.createdAt || ""
-                    ).toLocaleTimeString()
-                  : "none"}
-              </div>
-              <div>
-                Last API Message:{" "}
-                {messages.length > 0
-                  ? new Date(
-                      messages[messages.length - 1]?.createdAt || ""
-                    ).toLocaleTimeString()
-                  : "none"}
-              </div>
-            </div>
-          )}
+        
 
           {mergedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">

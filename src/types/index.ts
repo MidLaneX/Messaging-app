@@ -6,6 +6,7 @@ export interface User {
   isOnline: boolean;
   isGroup?: boolean;
   participants?: string[]; // For groups
+  memberCount?: number; // For groups - total member count
 }
 export type MessageType = "TEXT" | "IMAGE" | "FILE" | "AUDIO";
 export type ChatType = "PRIVATE" | "GROUP";
@@ -42,6 +43,7 @@ export interface ChatRoom {
   isGroup: boolean;
   name?: string;
   avatar?: string;
+  memberCount?: number; // Add member count for groups
 }
 
 export interface OnlineStatus {

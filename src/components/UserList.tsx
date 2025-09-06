@@ -304,6 +304,7 @@ const UserList: React.FC<UserListProps> = ({
                     isOnline: false,
                     isGroup: true,
                     participants: conversation.participants,
+                    memberCount: conversation.memberCount,
                   };
                   onUserSelect(groupAsUser);
                 }

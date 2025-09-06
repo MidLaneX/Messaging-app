@@ -16,6 +16,7 @@ export interface ConversationItem {
   isGroup: boolean;
   // For groups
   participants?: string[];
+  memberCount?: number;
   // For users
   userId?: string;
 }
@@ -54,6 +55,7 @@ const convertGroupToConversation = (group: ChatRoom): ConversationItem => ({
   isOnline: false, // Groups don't have online status
   isGroup: true,
   participants: group.participants,
+  memberCount: group.memberCount,
 });
 
 export const useConversations = (): UseConversationsReturn => {
