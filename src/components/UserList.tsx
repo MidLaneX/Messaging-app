@@ -4,6 +4,7 @@ import { formatRelativeTime, truncateText } from "../utils";
 import { ConversationItem } from "../hooks/useConversations";
 import { useUser } from "../context/UserContext";
 import Conversation from "./UI/Conversation";
+import { SettingsModal, NewChatModal, CreateGroupModal } from "./modals";
 
 interface UserListProps {
   /** List of conversation items including users and groups */
@@ -31,6 +32,9 @@ const UserList: React.FC<UserListProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const { currentUserName, logout } = useUser();
 
   const handleLogout = () => {
@@ -44,6 +48,30 @@ const UserList: React.FC<UserListProps> = ({
 
   const cancelLogout = () => {
     setShowLogoutConfirm(false);
+  };
+
+  const handleSettings = () => {
+    setShowSettings(true);
+  };
+
+  const handleNewChat = () => {
+    setShowNewChat(true);
+  };
+
+  const handleCreateGroup = () => {
+    setShowCreateGroup(true);
+  };
+
+  const handleNewChatSubmit = (email: string) => {
+    console.log('Adding contact:', email);
+    // TODO: Implement contact addition logic
+    alert(`Contact request sent to: ${email}`);
+  };
+
+  const handleCreateGroupSubmit = (groupData: { name: string; description: string }) => {
+    console.log('Creating group:', groupData);
+    // TODO: Implement group creation logic
+    alert(`Group "${groupData.name}" created successfully!`);
   };
 
   // Filter conversations based on active tab and search query
@@ -131,12 +159,11 @@ const UserList: React.FC<UserListProps> = ({
               <h2 className="text-lg font-semibold text-white truncate">
                 {currentUserName}
               </h2>
-              <p className="text-sm text-emerald-100">
-                Online • Active now
-              </p>
+           
             </div>
             <div className="flex space-x-1">
               <button
+                onClick={handleSettings}
                 className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
                 title="Settings"
               >
@@ -146,11 +173,21 @@ const UserList: React.FC<UserListProps> = ({
                 </svg>
               </button>
               <button
+                onClick={handleNewChat}
                 className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
                 title="New Chat"
               >
                 <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <button
+                onClick={handleCreateGroup}
+                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                title="Create Group"
+              >
+                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </button>
             </div>
@@ -303,7 +340,7 @@ const UserList: React.FC<UserListProps> = ({
                   </p>
                   {!searchQuery && activeTab === 'groups' && (
                     <button
-                      onClick={() => alert("Create Group clicked!")}
+                      onClick={handleCreateGroup}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors shadow-sm"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,6 +388,24 @@ const UserList: React.FC<UserListProps> = ({
           <span className="font-medium group-hover:text-green-600 transition-colors">Sign Out</span>
         </button>
       </div>
+
+      {/* Professional Modal Components */}
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+      />
+      
+      <NewChatModal 
+        isOpen={showNewChat} 
+        onClose={() => setShowNewChat(false)}
+        onSubmit={handleNewChatSubmit}
+      />
+      
+      <CreateGroupModal 
+        isOpen={showCreateGroup} 
+        onClose={() => setShowCreateGroup(false)}
+        onSubmit={handleCreateGroupSubmit}
+      />
 
       {/* Professional Green Logout Confirmation Modal */}
       {showLogoutConfirm && (
