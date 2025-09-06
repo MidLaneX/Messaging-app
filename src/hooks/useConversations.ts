@@ -140,9 +140,9 @@ export const useConversations = (): UseConversationsReturn => {
       // Combine and sort by last message timestamp (most recent first)
       const allConversations = [...userConversations, ...groupConversations];
       allConversations.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
-        const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
-        return bTime - aTime; // Most recent first
+        const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
+        const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
+        return bTime - aTime;
       });
       
       setConversations(allConversations);
@@ -179,8 +179,8 @@ export const useConversations = (): UseConversationsReturn => {
         const combined = [...(prev || []), ...newUserConversations];
         // Re-sort after adding new items
         return combined.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
-          const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+          const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
+          const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
           return bTime - aTime;
         });
       });
