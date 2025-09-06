@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  avatar: string;
-}
+import { users, User } from '../data/users';
 
 interface LoginProps {
   onUserSelect: (userId: string) => void;
@@ -12,19 +7,6 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
   const [selectedUser, setSelectedUser] = useState<string>('');
-
-  const users: User[] = [
-    {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      name: 'Parakrama',
-      avatar: '👨‍💼'
-    },
-    {
-      id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
-      name: 'Pasindu',
-      avatar: '👨‍💻'
-    }
-  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

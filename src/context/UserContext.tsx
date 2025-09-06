@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { usersMap } from '../data/users';
 
 interface UserContextType {
   currentUserId: string | null;
@@ -44,13 +45,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }, []);
 
   const setCurrentUserId = (userId: string) => {
-    // Map userId to name
-    const userMap: Record<string, string> = {
-      'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11': 'Parakrama',
-      'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12': 'Pasindu'
-    };
-
-    const userName = userMap[userId] || 'Unknown User';
+    const user = usersMap.get(userId);
+    const userName = user ? user.name : 'Unknown User';
     
     setCurrentUserIdState(userId);
     setCurrentUserName(userName);

@@ -22,8 +22,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   setWsMessages,
 }) => {
   const [newMessage, setNewMessage] = useState("");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Function to deduplicate and merge messages prioritizing WebSocket messages
   const getMergedMessages = () => {
@@ -61,6 +65,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Immediately scroll to bottom when chat opens
   useEffect(() => {
     if (selectedUser) {
@@ -75,16 +93,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [messages, wsMessages]);
 
   // Get merged and deduplicated messages
-  const mergedMessages = getMergedMessages();
+  const allMessages = getMergedMessages();
+
+  const filteredMessages = allMessages.filter(message =>
+    message.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Ensure we're at bottom after component renders
   useEffect(() => {
-    if (selectedUser && mergedMessages.length > 0) {
+    if (selectedUser && filteredMessages.length > 0) {
       // Small delay to ensure DOM is fully rendered
       const timer = setTimeout(() => scrollToBottom('auto'), 50);
       return () => clearTimeout(timer);
     }
-  }, [selectedUser, mergedMessages.length]);
+  }, [selectedUser, filteredMessages.length]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,64 +179,98 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-whatsapp-bg bg-whatsapp-pattern">
       {/* Chat Header */}
-      <div className="bg-green-700 text-white px-5 py-4 flex items-center justify-between border-b border-gray-200">
-        <div className="flex items-center">
-          <div className="relative mr-4">
-            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-lg">
-              {selectedUser.avatar || (selectedUser.isGroup ? "👥" : "👤")}
+      <div className="bg-green-700 text-white px-5 py-4 flex items-center justify-between border-b border-gray-200 relative">
+        {!isSearchVisible ? (
+          <>
+            <div className="flex items-center">
+              <div className="relative mr-4">
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-lg">
+                  {selectedUser.avatar || (selectedUser.isGroup ? "👥" : "👤")}
+                </div>
+                {!selectedUser.isGroup && selectedUser.isOnline && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
+                )}
+                {selectedUser.isGroup && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-400 border-2 border-white rounded-full"></div>
+                )}
+              </div>
+              <div>
+                <h3 className="font-medium text-lg">{selectedUser.name}</h3>
+                <p className="text-sm text-green-100">
+                  {selectedUser.isGroup
+                    ? `Group • ${selectedUser.memberCount || selectedUser.participants?.length || 0} members`
+                    : selectedUser.isOnline
+                    ? "online"
+                    : formatLastSeenText(selectedUser.lastSeen)}
+                </p>
+              </div>
             </div>
-            {!selectedUser.isGroup && selectedUser.isOnline && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
-            )}
-            {selectedUser.isGroup && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-400 border-2 border-white rounded-full"></div>
-            )}
-          </div>
-          <div>
-            <h3 className="font-medium text-lg">
-              {selectedUser.name}
-            
-            </h3>
-            <p className="text-sm text-green-100">
-              {selectedUser.isGroup ? (() => {
-                const memberCount = selectedUser.memberCount || selectedUser.participants?.length || 0;
-                console.log(`📊 Group ${selectedUser.name} member info:`, {
-                  memberCount: selectedUser.memberCount,
-                  participantsLength: selectedUser.participants?.length,
-                  finalCount: memberCount,
-                  participants: selectedUser.participants
-                });
-                return `Group • ${memberCount} members`;
-              })()
-                : selectedUser.isOnline
-                ? "online"
-                : formatLastSeenText(selectedUser.lastSeen)}
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
-            title="Search"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </button>
-          <button
-            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
-            title="More options"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-            </svg>
-          </button>
-        </div>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setIsSearchVisible(true)}
+                className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
+                title="Search"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
+                  title="More options"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                  </svg>
+                </button>
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 text-gray-800">
+                    <a href="#" className="block px-4 py-2 text-sm hover:bg-gray-100">Contact info</a>
+                    <a href="#" className="block px-4 py-2 text-sm hover:bg-gray-100">Select messages</a>
+                    <a href="#" className="block px-4 py-2 text-sm hover:bg-gray-100">Close chat</a>
+                    <a href="#" className="block px-4 py-2 text-sm hover:bg-gray-100">Mute notifications</a>
+                    <a href="#" className="block px-4 py-2 text-sm hover:bg-gray-100">Clear messages</a>
+                    <a href="#" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Delete chat</a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="w-full flex items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search messages..."
+              className="w-full bg-transparent border-b border-white placeholder-green-100 focus:outline-none"
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                setIsSearchVisible(false);
+                setSearchQuery("");
+              }}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors ml-2"
+              title="Close search"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
@@ -225,16 +281,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           style={{ scrollBehavior: 'auto' }}
         >
         
+          {searchQuery && filteredMessages.length > 0 && (
+            <div className="text-center text-sm text-whatsapp-gray mb-4">
+              {filteredMessages.length} matched messages
+            </div>
+          )}
 
-          {mergedMessages.length === 0 ? (
+          {filteredMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-whatsapp-gray italic">
-                No messages yet. Start the conversation!
+                {searchQuery ? `No messages found for "${searchQuery}"` : "No messages yet. Start the conversation!"}
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {mergedMessages.map((message, index, arr) => {
+              {filteredMessages.map((message, index, arr) => {
                   const isCurrentUser = message.senderId === currentUser.id;
                   const previousMessage =
                     index > 0 ? arr[index - 1] : undefined;
