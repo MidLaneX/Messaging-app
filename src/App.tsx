@@ -53,22 +53,33 @@ const ChatApp: React.FC = () => {
   
   // Function to get the latest message for a conversation from WebSocket messages
   const getLatestWSMessageForConversation = (conversationId: string, isGroup: boolean): Message | undefined => {
+    console.log(`🔍 Getting latest WS message for ${isGroup ? 'group' : 'user'} ${conversationId}`);
+    console.log(`🔍 Total wsMessages: ${wsMessages.length}`);
+    
     const relevantMessages = wsMessages.filter((msg) => {
       if (isGroup) {
-        return msg.chatType === "GROUP" && msg.groupId === conversationId;
+        const isRelevant = msg.chatType === "GROUP" && msg.groupId === conversationId;
+        console.log(`🔍 Group message check: ${msg.id} - chatType: ${msg.chatType}, groupId: ${msg.groupId}, conversationId: ${conversationId}, relevant: ${isRelevant}`);
+        return isRelevant;
       } else {
-        return msg.chatType === "PRIVATE" && 
+        const isRelevant = msg.chatType === "PRIVATE" && 
                ((msg.senderId === currentUser.id && msg.recipientId === conversationId) ||
                 (msg.senderId === conversationId && msg.recipientId === currentUser.id));
+        return isRelevant;
       }
     });
     
+    console.log(`🔍 Found ${relevantMessages.length} relevant messages for ${isGroup ? 'group' : 'user'} ${conversationId}`);
+    
     // Return the most recent message
-    return relevantMessages.length > 0 
+    const latest = relevantMessages.length > 0 
       ? relevantMessages.sort((a, b) => 
           new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
         )[0]
       : undefined;
+      
+    console.log(`🔍 Latest WS message for ${isGroup ? 'group' : 'user'} ${conversationId}:`, latest);
+    return latest;
   };
 
   // Enhanced conversations with latest WebSocket messages
@@ -79,10 +90,20 @@ const ChatApp: React.FC = () => {
       // If we have a WebSocket message, check if it's newer than the REST API message
       if (latestWSMessage && conv.lastMessage) {
         const wsMessageTime = new Date(latestWSMessage.createdAt || "").getTime();
-        const restMessageTime = new Date(conv.lastMessage.createdAt).getTime();
+        // Fix: Handle both string and potentially undefined createdAt for REST API messages
+        const restMessageTime = new Date(conv.lastMessage.createdAt || conv.lastMessage.timestamp || "").getTime();
+        
+        console.log(`Comparing messages for ${conv.isGroup ? 'group' : 'user'} ${conv.id}:`, {
+          wsMessageTime,
+          restMessageTime,
+          wsMessage: latestWSMessage,
+          restMessage: conv.lastMessage,
+          wsNewer: wsMessageTime > restMessageTime
+        });
         
         // Use WebSocket message if it's newer
         if (wsMessageTime > restMessageTime) {
+          console.log(`Using WebSocket message for ${conv.isGroup ? 'group' : 'user'} ${conv.id}`);
           return {
             ...conv,
             lastMessage: latestWSMessage
@@ -90,6 +111,7 @@ const ChatApp: React.FC = () => {
         }
       } else if (latestWSMessage && !conv.lastMessage) {
         // If there's no REST API message but we have a WebSocket message, use it
+        console.log(`Using WebSocket message for ${conv.isGroup ? 'group' : 'user'} ${conv.id} (no REST message)`);
         return {
           ...conv,
           lastMessage: latestWSMessage
@@ -305,8 +327,11 @@ const ChatApp: React.FC = () => {
                     createdAt: msg.createdAt || new Date().toISOString(),
                   };
                   
-                  console.log("Adding new group message to UI:", newMessage);
-                  return [...prev, newMessage];
+                  console.log("Adding new group message to wsMessages:", newMessage);
+                  console.log("Current wsMessages length:", prev.length);
+                  const updatedMessages = [...prev, newMessage];
+                  console.log("Updated wsMessages length:", updatedMessages.length);
+                  return updatedMessages;
                 });
               }
             },

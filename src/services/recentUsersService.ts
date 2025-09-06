@@ -337,3 +337,22 @@ export async function fetchLastMessageForUser(currentUserId: string, otherUserId
     return undefined;
   }
 }
+
+// Helper function to fetch last message for a group
+export async function fetchLastMessageForGroup(groupId: string): Promise<Message | undefined> {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get(
+      `${APP_CONFIG.API_BASE_URL}/api/chat/group/${groupId}?page=0&size=1`
+    );
+    
+    const messages = response.data.content;
+    if (messages && messages.length > 0) {
+      return messages[0]; // Return the most recent message
+    }
+    return undefined;
+  } catch (error) {
+    console.warn(`Failed to fetch last message for group ${groupId}:`, error);
+    return undefined;
+  }
+}

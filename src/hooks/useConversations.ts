@@ -101,9 +101,39 @@ export const useConversations = (): UseConversationsReturn => {
         users = usersWithMessages;
       }
       
+      // If groups don't have last messages, try to fetch them
+      if (groups.length > 0 && groups.some(group => !group.lastMessage)) {
+        console.log('Fetching last messages for groups without them...');
+        const { fetchLastMessageForGroup } = await import('../services/recentUsersService');
+        const groupsWithMessages = await Promise.all(
+          groups.map(async (group) => {
+            if (!group.lastMessage) {
+              const lastMessage = await fetchLastMessageForGroup(group.id);
+              return { ...group, lastMessage };
+            }
+            return group;
+          })
+        );
+        groups = groupsWithMessages;
+      }
+      
       // Convert to conversation items
       const userConversations = users.map(convertUserToConversation);
       const groupConversations = groups.map(convertGroupToConversation);
+      
+      console.log('🔍 Converted user conversations:', userConversations.map(c => ({
+        id: c.id,
+        name: c.name,
+        lastMessage: c.lastMessage,
+        isGroup: c.isGroup
+      })));
+      
+      console.log('🔍 Converted group conversations:', groupConversations.map(c => ({
+        id: c.id,
+        name: c.name,
+        lastMessage: c.lastMessage,
+        isGroup: c.isGroup
+      })));
       
       // Combine and sort by last message timestamp (most recent first)
       const allConversations = [...userConversations, ...groupConversations];
