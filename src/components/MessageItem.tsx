@@ -113,7 +113,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         }`}
       >
         {!isCurrentUser && showAvatar && (
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-xs mr-2 flex-shrink-0 self-end">
+          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-xs mr-2 flex-shrink-0 self-end">
             {isGroupChat && senderInfo ? senderInfo.senderAvatar : (user.avatar || "👤")}
           </div>
         )}
@@ -127,7 +127,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         >
           {/* Show sender name for group messages */}
           {!isCurrentUser && showAvatar && isGroupChat && senderInfo && (
-            <div className="text-sm font-semibold text-blue-600 mb-1">
+            <div className="text-sm font-semibold text-emerald-600 mb-1">
               {senderInfo.senderName}
             </div>
           )}
@@ -158,7 +158,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         </div>
 
         {isCurrentUser && showAvatar && (
-          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-xs ml-2 flex-shrink-0 self-end">
+          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center text-xs ml-2 flex-shrink-0 self-end">
             {user.avatar || "👤"}
           </div>
         )}

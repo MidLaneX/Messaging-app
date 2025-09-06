@@ -37,14 +37,14 @@ export const CHAT_CLASSES = {
   headerSubtitle: 'text-sm text-gray-500',
   
   // Avatar
-  avatar: 'w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-lg font-semibold text-white shadow-md',
-  avatarOnline: 'absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-3 border-white rounded-full shadow-sm',
-  avatarGroup: 'absolute -bottom-1 -right-1 w-4 h-4 bg-blue-400 border-3 border-white rounded-full shadow-sm',
+  avatar: 'w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-lg font-semibold text-white shadow-md',
+  avatarOnline: 'absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-3 border-white rounded-full shadow-sm',
+  avatarGroup: 'absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-3 border-white rounded-full shadow-sm',
   
   // Buttons
   button: 'p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 text-gray-600 hover:text-gray-800',
   sendButton: 'p-3 rounded-full transition-all duration-200',
-  sendButtonActive: 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105',
+  sendButtonActive: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105',
   sendButtonDisabled: 'bg-gray-200 text-gray-400 cursor-not-allowed',
   
   // Messages Area
@@ -55,7 +55,7 @@ export const CHAT_CLASSES = {
   
   // Input Area
   inputContainer: 'bg-white border-t border-gray-200 px-6 py-4',
-  inputWrapper: 'flex-1 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-blue-300 focus-within:bg-white transition-all duration-200',
+  inputWrapper: 'flex-1 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200',
   textarea: 'flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent text-base leading-6 max-h-32',
   
   // Menu
@@ -64,8 +64,8 @@ export const CHAT_CLASSES = {
   menuItemDanger: 'w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors',
   
   // Search
-  searchInput: 'w-full bg-gray-100 border border-gray-200 rounded-full px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all',
-  searchBadge: 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800',
+  searchInput: 'w-full bg-gray-100 border border-gray-200 rounded-full px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all',
+  searchBadge: 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800',
 } as const;
 
 export const CHAT_MESSAGES = {

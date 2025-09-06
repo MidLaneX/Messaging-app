@@ -48,7 +48,7 @@ const Conversation: React.FC<ConversationProps> = ({
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                     )}
                     {conversation.isGroup && (
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-blue-500 border-2 border-white rounded-full shadow-sm"></div>
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                     )}
                   </div>
 

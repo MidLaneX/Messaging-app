@@ -16,7 +16,7 @@ const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-4xl mb-4">💬</div>
@@ -34,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
                 key={user.id}
                 className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 ${
                   selectedUser === user.id
-                    ? 'border-green-500 bg-green-50 shadow-md'
+                    ? 'border-emerald-500 bg-emerald-50 shadow-md'
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                 }`}
                 onClick={() => setSelectedUser(user.id)}
@@ -51,14 +51,14 @@ const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
                     <div
                       className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
                         selectedUser === user.id
-                          ? 'border-green-500 bg-green-500'
+                          ? 'border-emerald-500 bg-emerald-500'
                           : 'border-gray-300'
                       }`}
                     >
                       {selectedUser === user.id && (
                         <div className="w-full h-full rounded-full bg-white scale-50 flex items-center justify-center">
                           <svg
-                            className="w-3 h-3 text-green-500"
+                            className="w-3 h-3 text-emerald-500"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -90,7 +90,7 @@ const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
             disabled={!selectedUser}
             className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all duration-200 ${
               selectedUser
-                ? 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >

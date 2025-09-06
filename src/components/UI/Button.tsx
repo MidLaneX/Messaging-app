@@ -16,7 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
   const baseClasses = 'font-medium rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const variantClasses = {
-    primary: 'bg-whatsapp-green hover:bg-whatsapp-green-dark text-white focus:ring-green-500',
+    primary: 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500',
     secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-500',
     ghost: 'bg-transparent hover:bg-gray-100 text-gray-700 focus:ring-gray-500',
   };
