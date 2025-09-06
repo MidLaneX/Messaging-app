@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import "./App.css";
 import UserList from "./components/UserList";
 import ChatWindow from "./components/ChatWindow";
+import Login from "./components/Login";
+import { UserProvider, useUser } from "./context/UserContext";
 import { useConversations } from "./hooks";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
@@ -16,7 +18,9 @@ import {
 } from "./services/ws";
 import "./utils/websocketDebug"; // Import debug utilities
 
-function App() {
+// Main chat application component
+const ChatApp: React.FC = () => {
+  const { currentUserId, currentUserName, isLoggedIn } = useUser();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -25,12 +29,17 @@ function App() {
     getConnectionStatus()
   );
 
-  // Hardcoded current user
+  // Return early if not logged in
+  if (!isLoggedIn || !currentUserId) {
+    return null;
+  }
+
+  // Current user object
   const currentUser: User = {
-    id: APP_CONFIG.CURRENT_USER_ID,
-    name: "You",
+    id: currentUserId,
+    name: currentUserName || "User",
     isOnline: true,
-    avatar: "😊",
+    avatar: currentUserName === "Parakrama" ? "👨‍💼" : "👨‍�",
   };
 
   // Use the new conversations hook
@@ -68,21 +77,26 @@ function App() {
       const latestWSMessage = getLatestWSMessageForConversation(conv.id, conv.isGroup);
       
       // If we have a WebSocket message, check if it's newer than the REST API message
-      if (latestWSMessage) {
+      if (latestWSMessage && conv.lastMessage) {
         const wsMessageTime = new Date(latestWSMessage.createdAt || "").getTime();
-        const restMessageTime = conv.lastMessage?.createdAt 
-          ? new Date(conv.lastMessage.createdAt).getTime() 
-          : 0;
+        const restMessageTime = new Date(conv.lastMessage.createdAt).getTime();
         
-        // Use WebSocket message if it's newer or if there's no REST message
+        // Use WebSocket message if it's newer
         if (wsMessageTime > restMessageTime) {
           return {
             ...conv,
             lastMessage: latestWSMessage
           };
         }
+      } else if (latestWSMessage && !conv.lastMessage) {
+        // If there's no REST API message but we have a WebSocket message, use it
+        return {
+          ...conv,
+          lastMessage: latestWSMessage
+        };
       }
       
+      // Otherwise, use the original conversation (with REST API lastMessage)
       return conv;
     });
   }, [conversations, wsMessages, currentUser.id]);
@@ -366,22 +380,6 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-100">
-      {/* Debug Panel - Only in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-sm">
-          <strong>Debug Info:</strong> 
-          Conversations: {conversations.length} | 
-          Loading: {loading ? 'Yes' : 'No'} | 
-          Error: {error || 'None'}
-          {conversations.length > 0 && (
-            <div className="mt-1">
-              Users: {conversations.filter(c => !c.isGroup).length} | 
-              Groups: {conversations.filter(c => c.isGroup).length}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="flex h-full">
         <UserList
           conversations={enhancedConversations}
@@ -403,6 +401,30 @@ function App() {
       </div>
     </div>
   );
+};
+
+// Main App wrapper component
+function App() {
+  return (
+    <UserProvider>
+      <AppContent />
+    </UserProvider>
+  );
 }
+
+// App content component that handles login state
+const AppContent: React.FC = () => {
+  const { isLoggedIn, setCurrentUserId } = useUser();
+
+  const handleUserSelect = (userId: string) => {
+    setCurrentUserId(userId);
+  };
+
+  if (!isLoggedIn) {
+    return <Login onUserSelect={handleUserSelect} />;
+  }
+
+  return <ChatApp />;
+};
 
 export default App;

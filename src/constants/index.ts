@@ -1,11 +1,35 @@
+// Function to get current user ID dynamically
+const getCurrentUserId = (): string => {
+  // Check if user ID is set dynamically (from user selection)
+  if (typeof window !== 'undefined' && (window as any).__MESSAGING_APP_CURRENT_USER_ID__) {
+    return (window as any).__MESSAGING_APP_CURRENT_USER_ID__;
+  }
+  
+  // Check localStorage
+  if (typeof window !== 'undefined') {
+    const savedUser = localStorage.getItem('messaging-app-current-user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        return userData.id;
+      } catch (error) {
+        console.error('Error parsing saved user data:', error);
+      }
+    }
+  }
+  
+  // Fall back to environment variable or default
+  return process.env.REACT_APP_CURRENT_USER_ID || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+};
+
 export const APP_CONFIG = {
   APP_NAME: "MessagingApp",
   VERSION: "1.0.0",
   API_BASE_URL: process.env.REACT_APP_API_URL || "http://localhost:8090",
   WEBSOCKET_URL: process.env.REACT_APP_WS_URL || "ws://localhost:8090",
-  CURRENT_USER_ID:
-    process.env.REACT_APP_CURRENT_USER_ID ||
-    "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  get CURRENT_USER_ID() {
+    return getCurrentUserId();
+  },
 } as const;
 
 export const UI_CONFIG = {

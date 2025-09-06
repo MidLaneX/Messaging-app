@@ -2,12 +2,11 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import { User } from "../types";
 import { formatRelativeTime, truncateText } from "../utils";
 import { ConversationItem } from "../hooks/useConversations";
+import { useUser } from "../context/UserContext";
 import Conversation from "./UI/Conversation";
 
 interface UserListProps {
   /** List of conversation items including users and groups */
-  /** List of conversation items including users and groups */
-    /** List of conversation items including users and groups */
   conversations: ConversationItem[];
   selectedUser: User | null;
   onUserSelect: (user: User) => void;
@@ -30,19 +29,50 @@ const UserList: React.FC<UserListProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { currentUserName, logout } = useUser();
 
-  // Filter conversations based on active tab
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    logout();
+    setShowLogoutConfirm(false);
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
+  // Filter conversations based on active tab and search query
   const filteredConversations = useMemo(() => {
+    let filtered = conversations;
+
+    // Filter by tab
     switch (activeTab) {
       case 'users':
-        return conversations.filter((conv: ConversationItem) => !conv.isGroup);
+        filtered = filtered.filter((conv: ConversationItem) => !conv.isGroup);
+        break;
       case 'groups':
-        return conversations.filter((conv: ConversationItem) => conv.isGroup);
+        filtered = filtered.filter((conv: ConversationItem) => conv.isGroup);
+        break;
       case 'all':
       default:
-        return conversations;
+        break;
     }
-  }, [conversations, activeTab]);
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((conv: ConversationItem) =>
+        conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (conv.lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
+      );
+    }
+
+    return filtered;
+  }, [conversations, activeTab, searchQuery]);
 
   // Count conversations by type
   const counts = useMemo(() => {
@@ -50,6 +80,14 @@ const UserList: React.FC<UserListProps> = ({
     const groupsCount = conversations.filter((conv: ConversationItem) => conv.isGroup).length;
     return { users: usersCount, groups: groupsCount, all: conversations.length };
   }, [conversations]);
+
+  const getUserAvatar = () => {
+    return currentUserName === "Parakrama" ? "👨‍💼" : "👨‍💻";
+  };
+
+  const getUserStatusColor = () => {
+    return "bg-green-500"; // Always online for demo
+  };
 
   const formatTime = (date: Date): string => {
     return formatRelativeTime(date);
@@ -77,64 +115,132 @@ const UserList: React.FC<UserListProps> = ({
   }, [loading, hasMore, onLoadMore, activeTab]);
 
   return (
-    <div className="w-100 min-w-[320px] bg-white border-r border-gray-200 flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-green-700 text-white p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Chats</h2>
-          <div className="flex space-x-2">
-            <button
-              className="bg-white text-green-700 font-semibold px-3 py-1 rounded-full shadow hover:bg-gray-100 transition-colors"
-              title="Create Group"
-              onClick={() => alert("Create Group clicked!")}
-            >
-              + Group
-            </button>
-            <button
-              className="bg-white text-green-700 font-semibold px-3 py-1 rounded-full shadow hover:bg-gray-100 transition-colors"
-              title="New Contact"
-              onClick={() => alert("New Contact clicked!")}
-            >
-              + Contact
-            </button>
+    <div className="w-100 min-w-[320px] bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
+      {/* Professional Green Header */}
+      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white">
+        {/* User Profile Section */}
+        <div className="p-4 border-b border-emerald-600">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="text-2xl bg-white bg-opacity-15 rounded-full p-2 backdrop-blur-sm ring-2 ring-white ring-opacity-20">
+                {getUserAvatar()}
+              </div>
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${getUserStatusColor()} rounded-full border-2 border-white shadow-sm`}></div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold text-white truncate">
+                {currentUserName}
+              </h2>
+              <p className="text-sm text-emerald-100">
+                Online • Active now
+              </p>
+            </div>
+            <div className="flex space-x-1">
+              <button
+                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                title="Settings"
+              >
+                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button
+                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                title="New Chat"
+              >
+                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-        
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <input
-            type="text"
-            placeholder="Search or start new chat"
-            className="w-full py-3 px-4 rounded-full bg-white text-gray-700 text-sm placeholder-green-700 focus:outline-none"
-          />
-          <div className="absolute right-3 top-3 text-green-700">🔍</div>
+
+        {/* Enhanced Search Bar */}
+        <div className="p-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-10 pr-4 py-2.5 border-0 rounded-lg bg-white bg-opacity-15 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:bg-opacity-25 transition-all duration-200 shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center group"
+              >
+                <svg className="h-5 w-5 text-emerald-300 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Tabs for filtering */}
-      <div className="bg-white p-2 flex space-x-4 border-b border-gray-200">
-        <button
-          className={`flex-1 py-2 ${activeTab === 'all' ? 'border-b-2 border-green-700 text-green-700' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('all')}
-        >All</button>
-        <button 
-          className={`flex-1 py-2 ${activeTab === 'users' ? 'border-b-2 border-green-700 text-green-700' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('users')}
-        >Users</button>
-        <button
-          className={`flex-1 py-2 ${activeTab === 'groups' ? 'border-b-2 border-green-700 text-green-700' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('groups')}
-        >Groups</button>
+      {/* Professional Green Tabs */}
+      <div className="bg-white border-b border-green-100">
+        <div className="flex">
+          <button
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+              activeTab === 'all'
+                ? 'text-green-700 bg-green-50'
+                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
+            }`}
+            onClick={() => setActiveTab('all')}
+          >
+            All Chats
+     
+            {activeTab === 'all' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
+            )}
+          </button>
+          <button
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+              activeTab === 'users'
+                ? 'text-green-700 bg-green-50'
+                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
+            }`}
+            onClick={() => setActiveTab('users')}
+          >
+            Direct
+          
+            {activeTab === 'users' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
+            )}
+          </button>
+          <button
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+              activeTab === 'groups'
+                ? 'text-green-700 bg-green-50'
+                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
+            }`}
+            onClick={() => setActiveTab('groups')}
+          >
+            Groups
+          
+            {activeTab === 'groups' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Conversations List */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {/* Tab Content Header */}
-        {activeTab !== 'all' && (
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-600">
-              {activeTab === 'users' ? 'Direct Messages' : 'Group Conversations'} 
-            </h3>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50">
+        {searchQuery && (
+          <div className="px-4 py-2 bg-white border-b border-gray-100">
+            <p className="text-sm text-gray-600">
+              {filteredConversations.length} result{filteredConversations.length !== 1 ? 's' : ''} for "{searchQuery}"
+            </p>
           </div>
         )}
 
@@ -167,57 +273,124 @@ const UserList: React.FC<UserListProps> = ({
               };
 
               return (
-                <Conversation
-                  key={conversation.id}
-                  conversation={conversation}
-                  currentUserId={currentUserId}
-                  isSelected={isSelected}
-                  handleSelect={handleSelect}
-                />
+                <div key={conversation.id} className="bg-white border-b border-gray-100 last:border-b-0">
+                  <Conversation
+                    conversation={conversation}
+                    currentUserId={currentUserId}
+                    isSelected={isSelected}
+                    handleSelect={handleSelect}
+                  />
+                </div>
               );
             })
-          : /* Empty state when no conversations */
-            !loading && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-green-700">
-                  <div className="text-4xl mb-2">
-                    {activeTab === 'users' ? '👤' : activeTab === 'groups' ? '👥' : '💬'}
+          : !loading && (
+              <div className="flex items-center justify-center h-full bg-white">
+                <div className="text-center text-gray-500 p-8">
+                  <div className="text-5xl mb-4 opacity-50">
+                    {searchQuery ? '🔍' : activeTab === 'users' ? '👤' : activeTab === 'groups' ? '👥' : '💬'}
                   </div>
-                  <p>
-                    {activeTab === 'users' 
-                      ? 'No direct messages yet'
-                      : activeTab === 'groups'
-                      ? 'No group conversations yet'
-                      : 'No conversations yet'
-                    }
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchQuery ? 'No matches found' : 
+                     activeTab === 'users' ? 'No direct messages' :
+                     activeTab === 'groups' ? 'No group conversations' : 
+                     'No conversations yet'}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {searchQuery ? `No conversations match "${searchQuery}"` :
+                     activeTab === 'users' ? 'Start a new conversation with someone' :
+                     activeTab === 'groups' ? 'Create a group to start chatting' :
+                     'Start your first conversation'}
                   </p>
-                  {activeTab === 'groups' && (
+                  {!searchQuery && activeTab === 'groups' && (
                     <button
                       onClick={() => alert("Create Group clicked!")}
-                      className="mt-3 bg-green-700 text-white px-4 py-2 rounded-full text-sm hover:bg-green-800 transition-colors"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors shadow-sm"
                     >
-                      Create your first group
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Create Group
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-        {/* Loading indicator - only show on 'all' tab or when initially loading */}
+        {/* Professional Green Loading Indicator */}
         {loading && (activeTab === 'all' || conversations.length === 0) && (
-          <div className="flex items-center justify-center p-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
-            <span className="ml-2 text-sm text-green-700">Loading conversations...</span>
+          <div className="flex items-center justify-center p-6 bg-white">
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
+              <span className="text-sm text-gray-600 font-medium">Loading conversations...</span>
+            </div>
           </div>
         )}
 
-        {/* No more conversations indicator - only on 'all' tab */}
-        {!hasMore && activeTab === 'all' && conversations && conversations.length > 0 && (
-          <div className="text-center p-4 text-sm text-green-700">
-            No more conversations
+        {/* Green Load More Indicator */}
+        {!hasMore && activeTab === 'all' && conversations && conversations.length > 0 && !searchQuery && (
+          <div className="text-center p-4 bg-white">
+            <div className="inline-flex items-center text-sm text-gray-500">
+              <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              All conversations loaded
+            </div>
           </div>
         )}
       </div>
+
+      {/* Professional Green Footer with Logout */}
+      <div className="bg-white border-t border-green-100 p-4">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center space-x-3 py-3 px-4 text-gray-700 hover:bg-green-50 rounded-lg transition-all duration-200 group border border-transparent hover:border-green-200"
+        >
+          <svg className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span className="font-medium group-hover:text-green-600 transition-colors">Sign Out</span>
+        </button>
+      </div>
+
+      {/* Professional Green Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border border-green-100">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Sign Out</h3>
+                  <p className="text-sm text-green-600">Confirm your action</p>
+                </div>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to sign out? You'll need to select your account again to continue chatting.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelLogout}
+                  className="flex-1 py-2.5 px-4 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors border border-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 py-2.5 px-4 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
