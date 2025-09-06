@@ -2,6 +2,7 @@ import React from "react";
 import { ConversationItem } from "../../hooks/useConversations";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import { truncateText } from "../../utils";
+import { usersMap } from "../../data/users";
 
 interface ConversationProps {
   conversation: ConversationItem;
@@ -16,6 +17,20 @@ const Conversation: React.FC<ConversationProps> = ({
   isSelected,
   handleSelect,
 }) => {
+  // Get sender name for group messages
+  const getSenderName = () => {
+    if (!conversation.isGroup || !conversation.lastMessage) return '';
+    
+    const senderId = conversation.lastMessage.senderId;
+    if (senderId === currentUserId) return 'You';
+    
+    // Try to get from senderName field first, then from usersMap
+    return conversation.lastMessage.senderName || 
+           usersMap.get(senderId)?.name || 
+           'Someone';
+  };
+
+  const senderName = getSenderName();
   return (
     <div
       key={conversation.id}
@@ -69,8 +84,8 @@ const Conversation: React.FC<ConversationProps> = ({
                             <div className="flex-1 min-w-0">
                               {conversation.isGroup ? (
                                 <div className="flex items-center space-x-1">
-                                  <span className="font-medium text-emerald-700 text-xs">
-                                    {conversation.lastMessage.senderName || 'Someone'}:
+                                  <span className="font-medium text-emerald-700 text-xs flex-shrink-0">
+                                    {senderName}:
                                   </span>
                                   <span className="text-gray-600 truncate">
                                     {truncateText(conversation.lastMessage.content, 25)}
@@ -78,7 +93,9 @@ const Conversation: React.FC<ConversationProps> = ({
                                 </div>
                               ) : (
                                 <span className="text-gray-600 truncate block">
-                                  {truncateText(conversation.lastMessage.content, 30)}
+                                  {conversation.lastMessage.senderId === currentUserId ? 
+                                    `You: ${truncateText(conversation.lastMessage.content, 26)}` :
+                                    truncateText(conversation.lastMessage.content, 30)}
                                 </span>
                               )}
                             </div>
