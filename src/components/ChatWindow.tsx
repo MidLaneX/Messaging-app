@@ -481,9 +481,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     key={message.id || `${message.senderId}-${index}`}
                     message={message}
                     isCurrentUser={isCurrentUser}
-                    showAvatar={
-                      index === 0 ||
-                      arr[index - 1].senderId !== message.senderId
+                    showAvatar={true
                     }
                     user={isCurrentUser ? currentUser : selectedUser}
                     previousMessage={previousMessage}
