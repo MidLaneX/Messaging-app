@@ -147,7 +147,7 @@ const UserList: React.FC<UserListProps> = ({
 
   return (
     <div className={`${
-      isMobile ? 'w-full' : 'w-100 min-w-[320px]'
+      isMobile ? 'w-full' : 'w-[400px] min-w-[400px] '
     } bg-white border-r border-gray-200 flex flex-col h-full shadow-sm`}>
       {/* Professional Green Header */}
       <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-lg">
@@ -222,11 +222,13 @@ const UserList: React.FC<UserListProps> = ({
         {/* Enhanced Search Bar */}
         <div className={`${isMobile ? 'p-4' : 'p-5'}`}>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            {/* icon */}
+            <div className="absolute inset-y-0 z-10 left-0 pl-4 flex items-center pointer-events-none">
               <svg className={`${isMobile ? 'h-4.5 w-4.5' : 'h-5 w-5'} text-emerald-200`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+            {/* input */}
             <input
               type="text"
               placeholder="Search conversations..."
@@ -239,7 +241,7 @@ const UserList: React.FC<UserListProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center group"
+                className="absolute inset-y-0 right-0 pr-4 flex items-center group z-10"
               >
                 <svg className={`${isMobile ? 'h-4.5 w-4.5' : 'h-5 w-5'} text-emerald-300 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
