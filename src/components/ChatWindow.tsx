@@ -563,7 +563,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
-        isMobile ? 'px-2 py-2 sticky bottom-0' : 'px-6 py-4'
+        isMobile ? 'px-4 py-5 pb-10 sticky bottom-0' : 'px-6 py-4'
       }`}>
         <form onSubmit={handleSendMessage} className={`flex items-center ${
           isMobile ? 'space-x-1' : 'space-x-3'
@@ -577,7 +577,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="hidden"
           />
           
-          <div className="relative flex-shrink-0" ref={attachmentMenuRef}>
+          <div className="relative  flex-shrink-0" ref={attachmentMenuRef}>
             <button
               type="button"
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
