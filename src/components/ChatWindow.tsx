@@ -563,10 +563,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
-        isMobile ? 'px-3 py-3' : 'px-6 py-4'
+        isMobile ? 'px-2 py-2 sticky bottom-0' : 'px-6 py-4'
       }`}>
-        <form onSubmit={handleSendMessage} className={`flex items-end ${
-          isMobile ? 'space-x-2' : 'space-x-3'
+        <form onSubmit={handleSendMessage} className={`flex items-center ${
+          isMobile ? 'space-x-1' : 'space-x-3'
         }`}>
           {/* Hidden file input */}
           <input
@@ -577,17 +577,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="hidden"
           />
           
-          <div className="relative" ref={attachmentMenuRef}>
+          <div className="relative flex-shrink-0" ref={attachmentMenuRef}>
             <button
               type="button"
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
               className={`${
-                isMobile ? 'p-2' : 'p-3'
-              } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100`}
+                isMobile ? 'p-1.5' : 'p-3'
+              } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100 flex items-center justify-center`}
               title="Attach file"
               aria-label="Attach file"
             >
-              <svg className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
               </svg>
             </button>
@@ -602,10 +602,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
 
           <div className={`flex-1 bg-gray-100 ${
-            isMobile ? 'rounded-2xl' : 'rounded-3xl'
+            isMobile ? 'rounded-xl' : 'rounded-3xl'
           } border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200`}>
-            <div className={`flex items-end ${
-              isMobile ? 'px-3 py-2' : 'px-5 py-3'
+            <div className={`flex items-center ${
+              isMobile ? 'px-2 py-1' : 'px-4 py-2'
             }`}>
               <textarea
                 ref={textareaRef}
@@ -614,16 +614,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message..."
                 className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent ${
-                  isMobile ? 'text-base leading-6' : 'text-lg leading-7'
-                } max-h-32`}
+                  isMobile ? 'text-sm leading-5 py-1' : 'text-base leading-6 py-1'
+                } ${isMobile ? 'max-h-24' : 'max-h-32'}`}
                 rows={1}
                 disabled={isSending}
               />
-              <div className={`relative ${isMobile ? 'ml-2' : 'ml-3'}`} ref={emojiPickerRef}>
+              <div className="flex-shrink-0" ref={emojiPickerRef}>
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                  className={`${isMobile ? 'p-1.5' : 'p-2'} text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center`}
                   title="Add emoji"
                   aria-label="Add emoji"
                 >
@@ -644,8 +644,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`${
-              isMobile ? 'p-3' : 'p-5'
+            className={`flex-shrink-0 flex items-center justify-center ${
+              isMobile ? 'w-8 h-8' : 'w-12 h-12'
             } rounded-full transition-all duration-200 ${
               newMessage.trim() && !isSending
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
