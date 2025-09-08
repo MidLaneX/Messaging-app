@@ -150,38 +150,41 @@ const UserList: React.FC<UserListProps> = ({
       isMobile ? 'w-full' : 'w-100 min-w-[320px]'
     } bg-white border-r border-gray-200 flex flex-col h-full shadow-sm`}>
       {/* Professional Green Header */}
-      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white">
+      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-lg">
         {/* User Profile Section */}
-        <div className={`${isMobile ? 'p-3' : 'p-4'} border-b border-emerald-600`}>
-          <div className="flex items-center space-x-3">
+        <div className={`${isMobile ? 'p-4' : 'px-5 py-6'} border-b border-emerald-600`}>
+          <div className="flex items-center space-x-4">
             <div className="relative">
               <div className={`${
-                isMobile ? 'text-xl p-1.5' : 'text-2xl p-2'
-              } bg-white bg-opacity-15 rounded-full backdrop-blur-sm ring-2 ring-white ring-opacity-20`}>
+                isMobile ? 'text-2xl p-2.5' : 'text-3xl p-3.5'
+              } bg-white bg-opacity-15 rounded-full backdrop-blur-sm ring-2 ring-white ring-opacity-30 shadow-lg`}>
                 {getUserAvatar()}
               </div>
               <div className={`absolute -bottom-1 -right-1 ${
-                isMobile ? 'w-3 h-3' : 'w-4 h-4'
-              } ${getUserStatusColor()} rounded-full border-2 border-white shadow-sm`}></div>
+                isMobile ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5'
+              } ${getUserStatusColor()} rounded-full border-2 border-white shadow-md`}></div>
             </div>
             <div className="flex-1 min-w-0">
               <h2 className={`${
-                isMobile ? 'text-base' : 'text-lg'
-              } font-semibold text-white truncate`}>
+                isMobile ? 'text-lg' : 'text-xl'
+              } font-bold text-white truncate tracking-tight`}>
                 {currentUserName}
               </h2>
+              <p className="text-emerald-100 font-medium mt-0.5">
+                Available
+              </p>
             </div>
-            <div className="flex space-x-1">
+            <div className="flex space-x-2">
               <button
                 onClick={handleSettings}
                 className={`${
-                  isMobile ? 'p-1.5' : 'p-2'
-                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
+                  isMobile ? 'p-2' : 'p-2.5'
+                } hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200 group flex items-center justify-center`}
                 title="Settings"
               >
                 <svg className={`${
-                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
-                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  isMobile ? 'w-5 h-5' : 'w-6 h-6'
+                } text-emerald-100 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
@@ -189,26 +192,26 @@ const UserList: React.FC<UserListProps> = ({
               <button
                 onClick={handleNewChat}
                 className={`${
-                  isMobile ? 'p-1.5' : 'p-2'
-                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
+                  isMobile ? 'p-2' : 'p-2.5'
+                } hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200 group flex items-center justify-center`}
                 title="New Chat"
               >
                 <svg className={`${
-                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
-                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  isMobile ? 'w-5 h-5' : 'w-6 h-6'
+                } text-emerald-100 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
               <button
                 onClick={handleCreateGroup}
                 className={`${
-                  isMobile ? 'p-1.5' : 'p-2'
-                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
+                  isMobile ? 'p-2' : 'p-2.5'
+                } hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200 group flex items-center justify-center`}
                 title="Create Group"
               >
                 <svg className={`${
-                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
-                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  isMobile ? 'w-5 h-5' : 'w-6 h-6'
+                } text-emerald-100 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </button>
@@ -217,10 +220,10 @@ const UserList: React.FC<UserListProps> = ({
         </div>
 
         {/* Enhanced Search Bar */}
-        <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
+        <div className={`${isMobile ? 'p-4' : 'p-5'}`}>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-emerald-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className={`${isMobile ? 'h-4.5 w-4.5' : 'h-5 w-5'} text-emerald-200`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -230,15 +233,15 @@ const UserList: React.FC<UserListProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full ${
-                isMobile ? 'pl-9 pr-3 py-2 text-sm' : 'pl-10 pr-4 py-2.5 text-base'
-              } border-0 rounded-lg bg-white bg-opacity-15 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:bg-opacity-25 transition-all duration-200 shadow-inner`}
+                isMobile ? 'pl-10 pr-3 py-2.5 text-sm' : 'pl-12 pr-4 py-3 text-base'
+              } border-0 rounded-xl bg-white bg-opacity-15 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:bg-opacity-25 transition-all duration-200 shadow-inner`}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center group"
+                className="absolute inset-y-0 right-0 pr-4 flex items-center group"
               >
-                <svg className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-emerald-300 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${isMobile ? 'h-4.5 w-4.5' : 'h-5 w-5'} text-emerald-300 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -252,7 +255,7 @@ const UserList: React.FC<UserListProps> = ({
         <div className="flex">
           <button
             className={`flex-1 ${
-              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+              isMobile ? 'py-5 px-2 text-xs' : 'py-3 px-4 text-sm'
             } font-medium transition-all duration-200 relative ${
               activeTab === 'all'
                 ? 'text-green-700 bg-green-50'

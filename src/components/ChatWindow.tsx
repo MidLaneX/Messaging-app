@@ -342,8 +342,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       tabIndex={-1}
     >
       {/* Chat Header */}
-      <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-sm border-b border-emerald-700 ${
-        isMobile ? 'px-3 py-2.5' : 'px-4 py-3'
+      <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 ${
+        isMobile ? 'px-4 py-3' : 'px-6 py-4'
       } flex items-center justify-between`}>
         {!isSearchVisible ? (
           <>
@@ -352,7 +352,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {isMobile && onBackPress && (
                 <button
                   onClick={onBackPress}
-                  className="p-2 mr-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
+                  className="p-2 mr-2.5 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
                   title="Back to conversations"
                   aria-label="Back to conversations"
                 >
@@ -362,49 +362,49 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </button>
               )}
               
-              <div className={`relative ${isMobile ? 'mr-2' : 'mr-3'}`}>
+              <div className={`relative flex-shrink-0 ${isMobile ? 'mr-3' : 'mr-4'}`}>
                 <div className={`${
-                  isMobile ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-sm'
-                } bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center font-semibold text-white shadow-md`}>
+                  isMobile ? 'w-10 h-10 text-base' : 'w-12 h-12 text-lg'
+                } bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center font-semibold text-white shadow-lg ring-2 ring-emerald-400 ring-opacity-50`}>
                   {selectedUser.avatar || (selectedUser.isGroup ? "👥" : selectedUser.name.charAt(0).toUpperCase())}
                 </div>
                 {!selectedUser.isGroup && selectedUser.isOnline && (
                   <div className={`absolute -bottom-0.5 -right-0.5 ${
-                    isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'
-                  } bg-emerald-400 border-2 border-white rounded-full shadow-sm`}></div>
+                    isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'
+                  } bg-emerald-400 border-2 border-white rounded-full shadow-md`}></div>
                 )}
                 {selectedUser.isGroup && (
                   <div className={`absolute -bottom-0.5 -right-0.5 ${
-                    isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'
-                  } bg-emerald-500 border-2 border-white rounded-full shadow-sm`}></div>
+                    isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'
+                  } bg-emerald-500 border-2 border-white rounded-full shadow-md`}></div>
                 )}
               </div>
-              <div>
+              <div className="flex flex-col justify-center">
                 <h3 className={`${
-                  isMobile ? 'text-base' : 'text-lg'
-                } font-medium text-white leading-tight`}>{selectedUser.name}</h3>
+                  isMobile ? 'text-base' : 'text-xl'
+                } font-semibold text-white leading-tight tracking-tight`}>{selectedUser.name}</h3>
                 <p className={`${
                   isMobile ? 'text-xs' : 'text-sm'
-                } text-emerald-100`}>
+                } text-emerald-100 font-medium`}>
                   {selectedUser.isGroup
                     ? `${selectedUser.memberCount || selectedUser.participants?.length || 0} members`
                     : selectedUser.isOnline
-                    ? "online"
+                    ? "Active now"
                     : formatLastSeenText(selectedUser.lastSeen)}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={handleSearchToggle}
                 className={`${
-                  isMobile ? 'p-1.5' : 'p-2'
-                } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white`}
+                  isMobile ? 'p-2' : 'p-2.5'
+                } rounded-full hover:bg-emerald-500 hover:bg-opacity-30 transition-colors duration-200 text-white flex items-center justify-center`}
                 title="Search messages"
                 aria-label="Search messages"
               >
-                <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${isMobile ? 'w-4.5 h-4.5' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
@@ -412,12 +412,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <button
                   onClick={handleMenuToggle}
                   className={`${
-                    isMobile ? 'p-1.5' : 'p-2'
-                  } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white`}
+                    isMobile ? 'p-2' : 'p-2.5'
+                  } rounded-full hover:bg-emerald-500 hover:bg-opacity-30 transition-colors duration-200 text-white flex items-center justify-center`}
                   title="More options"
                   aria-label="More options"
                 >
-                  <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`${isMobile ? 'w-4.5 h-4.5' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                   </svg>
                 </button>
