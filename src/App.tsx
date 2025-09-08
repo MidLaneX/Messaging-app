@@ -5,7 +5,7 @@ import ChatWindow from "./components/ChatWindow";
 import Login from "./components/Login";
 import { UserProvider, useUser } from "./context/UserContext";
 import { useConversations } from "./hooks";
-import { useIsMobile } from "./hooks/useMediaQuery";
+import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import {
@@ -31,6 +31,7 @@ const ChatApp: React.FC = () => {
   
   // Mobile-specific state for navigation
   const isMobile = useIsMobile();
+  const { viewportHeight, isKeyboardOpen } = useViewportHeight();
   const [showChatView, setShowChatView] = useState(false);
 
   // Return early if not logged in
@@ -424,10 +425,18 @@ const ChatApp: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-100 overflow-hidden">
+    <div 
+      className="bg-gray-100 overflow-hidden"
+      style={{ 
+        height: isMobile ? `${viewportHeight}px` : '100vh' 
+      }}
+    >
       {isMobile ? (
-        // Mobile Layout with sliding animation
-        <div className="relative w-full h-full">
+        // Mobile Layout with sliding animation and keyboard awareness
+        <div 
+          className="relative w-full"
+          style={{ height: `${viewportHeight}px` }}
+        >
           {/* User List - slides left when chat is open */}
           <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
             showChatView ? '-translate-x-full' : 'translate-x-0'
@@ -458,6 +467,7 @@ const ChatApp: React.FC = () => {
                 loadingMessages={loadingMessages}
                 isMobile={true}
                 onBackPress={handleBackToUserList}
+                isKeyboardOpen={isKeyboardOpen}
               />
             </div>
           )}

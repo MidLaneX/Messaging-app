@@ -38,6 +38,8 @@ interface ChatWindowProps {
   isMobile?: boolean;
   /** Callback for back button press on mobile */
   onBackPress?: () => void;
+  /** Whether keyboard is open on mobile (for layout adjustments) */
+  isKeyboardOpen?: boolean;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -48,6 +50,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   setWsMessages,
   isMobile = false,
   onBackPress,
+  isKeyboardOpen = false,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -337,7 +340,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div 
-      className="flex-1 flex flex-col h-full bg-gray-50"
+      className={`flex-1 flex flex-col bg-gray-50 ${
+        isMobile && isKeyboardOpen ? 'h-auto' : 'h-full'
+      }`}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
@@ -492,12 +497,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-gray-100">
+      <div className={`flex-1 overflow-hidden flex flex-col bg-gray-100 ${
+        isMobile && isKeyboardOpen ? 'flex-shrink' : ''
+      }`}>
         <div 
           ref={messagesContainerRef}
           className={`flex-1 overflow-y-auto ${
             isMobile ? 'px-2 py-1' : 'px-4 py-2'
-          } space-y-1`} 
+          } space-y-1 ${
+            isMobile && isKeyboardOpen ? 'max-h-60' : ''
+          }`} 
           style={{ scrollBehavior: 'auto' }}
         >
           {searchQuery && filteredMessages.length > 0 && (
@@ -563,7 +572,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
-        isMobile ? 'px-4 py-5 pb-10 sticky bottom-0' : 'px-6 py-4'
+        isMobile 
+          ? isKeyboardOpen 
+            ? 'px-3 py-2 pb-3 sticky bottom-0' 
+            : 'px-4 py-5 pb-10 sticky bottom-0'
+          : 'px-6 py-4'
       }`}>
         <form onSubmit={handleSendMessage} className={`flex items-center ${
           isMobile ? 'space-x-1' : 'space-x-3'
@@ -615,7 +628,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 placeholder="Type a message..."
                 className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent ${
                   isMobile ? 'text-sm leading-5 py-1' : 'text-base leading-6 py-1'
-                } ${isMobile ? 'max-h-24' : 'max-h-32'}`}
+                } ${
+                  isMobile 
+                    ? isKeyboardOpen 
+                      ? 'max-h-16' 
+                      : 'max-h-24'
+                    : 'max-h-32'
+                }`}
                 rows={1}
                 disabled={isSending}
               />
