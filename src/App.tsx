@@ -5,6 +5,7 @@ import ChatWindow from "./components/ChatWindow";
 import Login from "./components/Login";
 import { UserProvider, useUser } from "./context/UserContext";
 import { useConversations } from "./hooks";
+import { useIsMobile } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import {
@@ -27,6 +28,10 @@ const ChatApp: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
+  
+  // Mobile-specific state for navigation
+  const isMobile = useIsMobile();
+  const [showChatView, setShowChatView] = useState(false);
 
   // Return early if not logged in
   if (!isLoggedIn || !currentUserId) {
@@ -121,6 +126,22 @@ const ChatApp: React.FC = () => {
       return conv;
     });
   }, [conversations, wsMessages, currentUser.id]);
+
+  // Mobile-friendly user selection handler
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+    if (isMobile) {
+      setShowChatView(true);
+    }
+  };
+
+  // Mobile back button handler
+  const handleBackToUserList = () => {
+    if (isMobile) {
+      setShowChatView(false);
+      setSelectedUser(null);
+    }
+  };
 
 
   // Update connection status periodically
@@ -403,26 +424,68 @@ const ChatApp: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-100">
-      <div className="flex h-full">
-        <UserList
-          conversations={enhancedConversations}
-          selectedUser={selectedUser}
-          onUserSelect={setSelectedUser}
-          currentUserId={currentUser.id}
-          loading={loading}
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-        />
-        <ChatWindow
-          selectedUser={selectedUser}
-          currentUser={currentUser}
-          messages={messages}
-          wsMessages={filteredWsMessages}
-          setWsMessages={setWsMessages}
-          loadingMessages={loadingMessages}
-        />
-      </div>
+    <div className="h-screen bg-gray-100 overflow-hidden">
+      {isMobile ? (
+        // Mobile Layout with sliding animation
+        <div className="relative w-full h-full">
+          {/* User List - slides left when chat is open */}
+          <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+            showChatView ? '-translate-x-full' : 'translate-x-0'
+          }`}>
+            <UserList
+              conversations={enhancedConversations}
+              selectedUser={selectedUser}
+              onUserSelect={handleUserSelect}
+              currentUserId={currentUser.id}
+              loading={loading}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              isMobile={true}
+            />
+          </div>
+
+          {/* Chat Window - slides in from right when chat is selected */}
+          {selectedUser && (
+            <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+              showChatView ? 'translate-x-0' : 'translate-x-full'
+            }`}>
+              <ChatWindow
+                selectedUser={selectedUser}
+                currentUser={currentUser}
+                messages={messages}
+                wsMessages={filteredWsMessages}
+                setWsMessages={setWsMessages}
+                loadingMessages={loadingMessages}
+                isMobile={true}
+                onBackPress={handleBackToUserList}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        // Desktop Layout - side by side
+        <div className="flex h-full">
+          <UserList
+            conversations={enhancedConversations}
+            selectedUser={selectedUser}
+            onUserSelect={handleUserSelect}
+            currentUserId={currentUser.id}
+            loading={loading}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isMobile={false}
+          />
+          <ChatWindow
+            selectedUser={selectedUser}
+            currentUser={currentUser}
+            messages={messages}
+            wsMessages={filteredWsMessages}
+            setWsMessages={setWsMessages}
+            loadingMessages={loadingMessages}
+            isMobile={false}
+          />
+        </div>
+      )}
     </div>
   );
 };

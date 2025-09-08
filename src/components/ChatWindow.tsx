@@ -34,6 +34,10 @@ interface ChatWindowProps {
   wsMessages: Message[];
   /** Function to update WebSocket messages */
   setWsMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  /** Whether the component is being used on mobile */
+  isMobile?: boolean;
+  /** Callback for back button press on mobile */
+  onBackPress?: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -42,6 +46,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   wsMessages, // Now pre-filtered for the selected user
   setWsMessages,
+  isMobile = false,
+  onBackPress,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -336,24 +342,50 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       tabIndex={-1}
     >
       {/* Chat Header */}
-      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-sm border-b border-emerald-700 px-4 py-3 flex items-center justify-between">
+      <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-sm border-b border-emerald-700 ${
+        isMobile ? 'px-3 py-2.5' : 'px-4 py-3'
+      } flex items-center justify-between`}>
         {!isSearchVisible ? (
           <>
             <div className="flex items-center">
-              <div className="relative mr-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-md">
+              {/* Back button for mobile */}
+              {isMobile && onBackPress && (
+                <button
+                  onClick={onBackPress}
+                  className="p-2 mr-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
+                  title="Back to conversations"
+                  aria-label="Back to conversations"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              
+              <div className={`relative ${isMobile ? 'mr-2' : 'mr-3'}`}>
+                <div className={`${
+                  isMobile ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-sm'
+                } bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center font-semibold text-white shadow-md`}>
                   {selectedUser.avatar || (selectedUser.isGroup ? "👥" : selectedUser.name.charAt(0).toUpperCase())}
                 </div>
                 {!selectedUser.isGroup && selectedUser.isOnline && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow-sm"></div>
+                  <div className={`absolute -bottom-0.5 -right-0.5 ${
+                    isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'
+                  } bg-emerald-400 border-2 border-white rounded-full shadow-sm`}></div>
                 )}
                 {selectedUser.isGroup && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
+                  <div className={`absolute -bottom-0.5 -right-0.5 ${
+                    isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'
+                  } bg-emerald-500 border-2 border-white rounded-full shadow-sm`}></div>
                 )}
               </div>
               <div>
-                <h3 className="font-medium text-lg text-white leading-tight">{selectedUser.name}</h3>
-                <p className="text-sm text-emerald-100">
+                <h3 className={`${
+                  isMobile ? 'text-base' : 'text-lg'
+                } font-medium text-white leading-tight`}>{selectedUser.name}</h3>
+                <p className={`${
+                  isMobile ? 'text-xs' : 'text-sm'
+                } text-emerald-100`}>
                   {selectedUser.isGroup
                     ? `${selectedUser.memberCount || selectedUser.participants?.length || 0} members`
                     : selectedUser.isOnline
@@ -366,41 +398,57 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="flex items-center space-x-1">
               <button
                 onClick={handleSearchToggle}
-                className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
+                className={`${
+                  isMobile ? 'p-1.5' : 'p-2'
+                } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white`}
                 title="Search messages"
                 aria-label="Search messages"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={handleMenuToggle}
-                  className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
+                  className={`${
+                    isMobile ? 'p-1.5' : 'p-2'
+                  } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white`}
                   title="More options"
                   aria-label="More options"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                   </svg>
                 </button>
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-2">
-                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <div className={`absolute right-0 mt-2 ${
+                    isMobile ? 'w-48' : 'w-52'
+                  } bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-2`}>
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
                       Contact info
                     </button>
-                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
                       Select messages
                     </button>
-                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
                       Mute notifications
                     </button>
                     <hr className="my-2 border-gray-100" />
-                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
                       Clear messages
                     </button>
-                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-red-600 hover:bg-red-50 transition-colors`}>
                       Delete chat
                     </button>
                   </div>
@@ -412,11 +460,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div className="w-full flex items-center space-x-3">
             <button
               onClick={handleSearchToggle}
-              className="p-2 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white"
+              className={`${
+                isMobile ? 'p-1.5' : 'p-2'
+              } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white`}
               title="Close search"
               aria-label="Close search"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -426,10 +476,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search messages..."
-                className="w-full bg-emerald-100 border border-emerald-200 rounded-full px-4 py-2 text-gray-900 placeholder-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-transparent transition-all"
+                className={`w-full bg-emerald-100 border border-emerald-200 rounded-full ${
+                  isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-base'
+                } text-gray-900 placeholder-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-transparent transition-all`}
                 autoFocus
               />
-              <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+                isMobile ? 'w-3 h-3' : 'w-4 h-4'
+              } text-gray-400`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -441,12 +495,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="flex-1 overflow-hidden flex flex-col bg-gray-100">
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-4 py-2 space-y-1" 
+          className={`flex-1 overflow-y-auto ${
+            isMobile ? 'px-2 py-1' : 'px-4 py-2'
+          } space-y-1`} 
           style={{ scrollBehavior: 'auto' }}
         >
           {searchQuery && filteredMessages.length > 0 && (
             <div className="text-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
+              <span className={`inline-flex items-center ${
+                isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm'
+              } rounded-full font-medium bg-emerald-100 text-emerald-800`}>
                 {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} found
               </span>
             </div>
@@ -455,16 +513,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {filteredMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={`${
+                  isMobile ? 'w-12 h-12' : 'w-16 h-16'
+                } bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4`}>
+                  <svg className={`${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  } text-gray-400`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 text-xl font-medium">
+                <p className={`text-gray-500 ${
+                  isMobile ? 'text-lg' : 'text-xl'
+                } font-medium`}>
                   {searchQuery ? `No messages found for "${searchQuery}"` : "No messages yet"}
                 </p>
                 {!searchQuery && (
-                  <p className="text-gray-400 text-base mt-2">
+                  <p className={`text-gray-400 ${
+                    isMobile ? 'text-sm' : 'text-base'
+                  } mt-2`}>
                     Start the conversation with a friendly message!
                   </p>
                 )}
@@ -481,11 +547,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     key={message.id || `${message.senderId}-${index}`}
                     message={message}
                     isCurrentUser={isCurrentUser}
-                    showAvatar={true
-                    }
+                    showAvatar={true}
                     user={isCurrentUser ? currentUser : selectedUser}
                     previousMessage={previousMessage}
                     isGroupChat={selectedUser.isGroup}
+                    isMobile={isMobile}
                   />
                 );
               })}
@@ -496,8 +562,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
+      <div className={`bg-white border-t border-gray-200 ${
+        isMobile ? 'px-3 py-3' : 'px-6 py-4'
+      }`}>
+        <form onSubmit={handleSendMessage} className={`flex items-end ${
+          isMobile ? 'space-x-2' : 'space-x-3'
+        }`}>
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -511,11 +581,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               type="button"
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-3 text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100"
+              className={`${
+                isMobile ? 'p-2' : 'p-3'
+              } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100`}
               title="Attach file"
               aria-label="Attach file"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
               </svg>
             </button>
@@ -529,19 +601,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             />
           </div>
 
-          <div className="flex-1 bg-gray-100 rounded-3xl border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200">
-            <div className="flex items-end px-5 py-3">
+          <div className={`flex-1 bg-gray-100 ${
+            isMobile ? 'rounded-2xl' : 'rounded-3xl'
+          } border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200`}>
+            <div className={`flex items-end ${
+              isMobile ? 'px-3 py-2' : 'px-5 py-3'
+            }`}>
               <textarea
                 ref={textareaRef}
                 value={newMessage}
                 onChange={handleMessageChange}
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent text-lg leading-7 max-h-32"
+                className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent ${
+                  isMobile ? 'text-base leading-6' : 'text-lg leading-7'
+                } max-h-32`}
                 rows={1}
                 disabled={isSending}
               />
-              <div className="relative ml-3" ref={emojiPickerRef}>
+              <div className={`relative ${isMobile ? 'ml-2' : 'ml-3'}`} ref={emojiPickerRef}>
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -549,7 +627,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   title="Add emoji"
                   aria-label="Add emoji"
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clipRule="evenodd" />
                   </svg>
                 </button>
@@ -566,7 +644,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`p-5 rounded-full transition-all duration-200 ${
+            className={`${
+              isMobile ? 'p-3' : 'p-5'
+            } rounded-full transition-all duration-200 ${
               newMessage.trim() && !isSending
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -575,12 +655,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             aria-label={isSending ? "Sending message" : "Send message"}
           >
             {isSending ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-spin`} fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             )}

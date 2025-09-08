@@ -10,6 +10,8 @@ interface MessageItemProps {
   user: User;
   previousMessage?: Message;
   isGroupChat?: boolean;
+  /** Whether the component is being used on mobile */
+  isMobile?: boolean;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({ 
@@ -18,7 +20,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   showAvatar, 
   user,
   previousMessage,
-  isGroupChat = false
+  isGroupChat = false,
+  isMobile = false
 }) => {
   const formatTime = (date: Date): string => {
     return formatMessageTime(date);
@@ -55,10 +58,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const getMessageStatusIcon = () => {
     if (!isCurrentUser) return null;
 
+    const iconSize = isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3';
+
     if (message.readAt) {
       return (
         <div className="flex items-center text-white opacity-70" title="Read">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <svg className={iconSize} fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -66,7 +71,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             />
           </svg>
           <svg
-            className="w-3 h-3 -ml-1"
+            className={`${iconSize} -ml-1`}
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -81,7 +86,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
     } else {
       return (
         <div className="flex items-center text-white opacity-70" title="Delivered">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <svg className={iconSize} fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -98,8 +103,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {shouldShowDateDivider(
         message.createdAt ? new Date(message.createdAt) : new Date()
       ) && (
-        <div className="flex justify-center my-4 animate-fade-in">
-          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+        <div className={`flex justify-center ${isMobile ? 'my-2' : 'my-4'} animate-fade-in`}>
+          <span className={`bg-gray-100 text-gray-600 ${
+            isMobile ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xs'
+          } rounded-full font-medium`}>
             {formatDate(
               message.createdAt ? new Date(message.createdAt) : new Date()
             )}
@@ -108,18 +115,22 @@ const MessageItem: React.FC<MessageItemProps> = ({
       )}
 
       <div
-        className={`flex mb-2 animate-slide-up group ${
+        className={`flex ${isMobile ? 'mb-1.5' : 'mb-2'} animate-slide-up group ${
           isCurrentUser ? "justify-end" : "justify-start"
         }`}
       >
         {!isCurrentUser && showAvatar && (
-          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-xs mr-2 flex-shrink-0 self-end">
+          <div className={`${
+            isMobile ? 'w-6 h-6 text-xs mr-1.5' : 'w-8 h-8 text-xs mr-2'
+          } bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}>
             {isGroupChat && senderInfo ? senderInfo.senderAvatar : (user.avatar || "👤")}
           </div>
         )}
 
         <div
-          className={`relative max-w-xs lg:max-w-lg px-4 py-3 rounded-lg transition-all duration-200 ${
+          className={`relative ${
+            isMobile ? 'max-w-[280px] px-3 py-2' : 'max-w-xs lg:max-w-lg px-4 py-3'
+          } rounded-lg transition-all duration-200 ${
             isCurrentUser
               ? "bg-green-600 text-white rounded-br-sm"
               : "bg-white text-gray-900 rounded-bl-sm border border-gray-200"
@@ -127,16 +138,22 @@ const MessageItem: React.FC<MessageItemProps> = ({
         >
           {/* Show sender name for group messages */}
           {!isCurrentUser && showAvatar && isGroupChat && senderInfo && (
-            <div className="text-sm font-semibold text-emerald-600 mb-1">
+            <div className={`${
+              isMobile ? 'text-xs' : 'text-sm'
+            } font-semibold text-emerald-600 mb-1`}>
               {senderInfo.senderName}
             </div>
           )}
 
-          <div className="text-base leading-relaxed whitespace-pre-wrap break-words">
+          <div className={`${
+            isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
+          } whitespace-pre-wrap break-words`}>
             {message.content}
           </div>
 
-          <div className="flex items-center justify-end space-x-1 mt-1 text-sm opacity-70">
+          <div className={`flex items-center justify-end space-x-1 mt-1 ${
+            isMobile ? 'text-xs' : 'text-sm'
+          } opacity-70`}>
             <span className="select-none">
               {formatTime(
                 message.createdAt ? new Date(message.createdAt) : new Date()
@@ -158,7 +175,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
         </div>
 
         {isCurrentUser && showAvatar && (
-          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center text-xs ml-2 flex-shrink-0 self-end">
+          <div className={`${
+            isMobile ? 'w-6 h-6 text-xs ml-1.5' : 'w-8 h-8 text-xs ml-2'
+          } bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}>
             {user.avatar || "👤"}
           </div>
         )}

@@ -15,6 +15,8 @@ interface UserListProps {
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  /** Whether the component is being used on mobile */
+  isMobile?: boolean;
 }
 
 type TabType = 'all' | 'users' | 'groups';
@@ -27,6 +29,7 @@ const UserList: React.FC<UserListProps> = ({
   loading,
   hasMore,
   onLoadMore,
+  isMobile = false,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -143,50 +146,69 @@ const UserList: React.FC<UserListProps> = ({
   }, [loading, hasMore, onLoadMore, activeTab]);
 
   return (
-    <div className="w-100 min-w-[320px] bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
+    <div className={`${
+      isMobile ? 'w-full' : 'w-100 min-w-[320px]'
+    } bg-white border-r border-gray-200 flex flex-col h-full shadow-sm`}>
       {/* Professional Green Header */}
       <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white">
         {/* User Profile Section */}
-        <div className="p-4 border-b border-emerald-600">
+        <div className={`${isMobile ? 'p-3' : 'p-4'} border-b border-emerald-600`}>
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="text-2xl bg-white bg-opacity-15 rounded-full p-2 backdrop-blur-sm ring-2 ring-white ring-opacity-20">
+              <div className={`${
+                isMobile ? 'text-xl p-1.5' : 'text-2xl p-2'
+              } bg-white bg-opacity-15 rounded-full backdrop-blur-sm ring-2 ring-white ring-opacity-20`}>
                 {getUserAvatar()}
               </div>
-              <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${getUserStatusColor()} rounded-full border-2 border-white shadow-sm`}></div>
+              <div className={`absolute -bottom-1 -right-1 ${
+                isMobile ? 'w-3 h-3' : 'w-4 h-4'
+              } ${getUserStatusColor()} rounded-full border-2 border-white shadow-sm`}></div>
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-white truncate">
+              <h2 className={`${
+                isMobile ? 'text-base' : 'text-lg'
+              } font-semibold text-white truncate`}>
                 {currentUserName}
               </h2>
-           
             </div>
             <div className="flex space-x-1">
               <button
                 onClick={handleSettings}
-                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                className={`${
+                  isMobile ? 'p-1.5' : 'p-2'
+                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
                 title="Settings"
               >
-                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${
+                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
+                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
               <button
                 onClick={handleNewChat}
-                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                className={`${
+                  isMobile ? 'p-1.5' : 'p-2'
+                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
                 title="New Chat"
               >
-                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${
+                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
+                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
               <button
                 onClick={handleCreateGroup}
-                className="p-2 hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group"
+                className={`${
+                  isMobile ? 'p-1.5' : 'p-2'
+                } hover:bg-white hover:bg-opacity-15 rounded-lg transition-all duration-200 group`}
                 title="Create Group"
               >
-                <svg className="w-5 h-5 text-emerald-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${
+                  isMobile ? 'w-4 h-4' : 'w-5 h-5'
+                } text-emerald-200 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </button>
@@ -195,10 +217,10 @@ const UserList: React.FC<UserListProps> = ({
         </div>
 
         {/* Enhanced Search Bar */}
-        <div className="p-4">
+        <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-emerald-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -207,14 +229,16 @@ const UserList: React.FC<UserListProps> = ({
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-4 py-2.5 border-0 rounded-lg bg-white bg-opacity-15 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:bg-opacity-25 transition-all duration-200 shadow-inner"
+              className={`block w-full ${
+                isMobile ? 'pl-9 pr-3 py-2 text-sm' : 'pl-10 pr-4 py-2.5 text-base'
+              } border-0 rounded-lg bg-white bg-opacity-15 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:bg-opacity-25 transition-all duration-200 shadow-inner`}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center group"
               >
-                <svg className="h-5 w-5 text-emerald-300 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} text-emerald-300 group-hover:text-white transition-colors`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -227,7 +251,9 @@ const UserList: React.FC<UserListProps> = ({
       <div className="bg-white border-b border-green-100">
         <div className="flex">
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+            className={`flex-1 ${
+              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+            } font-medium transition-all duration-200 relative ${
               activeTab === 'all'
                 ? 'text-green-700 bg-green-50'
                 : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
@@ -235,13 +261,14 @@ const UserList: React.FC<UserListProps> = ({
             onClick={() => setActiveTab('all')}
           >
             All Chats
-     
             {activeTab === 'all' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
             )}
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+            className={`flex-1 ${
+              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+            } font-medium transition-all duration-200 relative ${
               activeTab === 'users'
                 ? 'text-green-700 bg-green-50'
                 : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
@@ -249,13 +276,14 @@ const UserList: React.FC<UserListProps> = ({
             onClick={() => setActiveTab('users')}
           >
             Direct
-          
             {activeTab === 'users' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
             )}
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 relative ${
+            className={`flex-1 ${
+              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+            } font-medium transition-all duration-200 relative ${
               activeTab === 'groups'
                 ? 'text-green-700 bg-green-50'
                 : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
@@ -263,7 +291,6 @@ const UserList: React.FC<UserListProps> = ({
             onClick={() => setActiveTab('groups')}
           >
             Groups
-          
             {activeTab === 'groups' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-sm"></div>
             )}
