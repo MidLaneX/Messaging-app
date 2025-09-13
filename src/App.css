@@ -151,7 +151,6 @@
   /* Prevent layout shift when keyboard opens */
   .mobile-layout {
     position: relative;
-    height: 100vh;
     height: 100dvh; /* Use dynamic viewport height */
     overflow: hidden;
   }

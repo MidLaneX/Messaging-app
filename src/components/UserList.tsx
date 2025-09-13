@@ -147,7 +147,7 @@ const UserList: React.FC<UserListProps> = ({
 
   return (
     <div className={`${
-      isMobile ? 'w-full h-screen flex flex-col' : 'w-[400px] min-w-[400px] '
+      isMobile ? 'w-full  h-[100dvh] flex flex-col' : 'w-[400px] min-w-[400px] '
     } bg-white border-r border-gray-200 flex flex-col h-full shadow-sm`}>
       {/* Professional Green Header */}
       <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-lg ${

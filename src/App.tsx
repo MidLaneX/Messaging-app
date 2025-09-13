@@ -427,10 +427,8 @@ const ChatApp: React.FC = () => {
 
   return (
     <div 
-      className={`bg-gray-100 overflow-hidden ${isMobile ? 'mobile-layout' : ''}`}
-      style={{ 
-        height: isMobile ? '100vh' : '100vh' // Use consistent viewport height
-      }}
+      className={`bg-gray-100 overflow-hidden ${isMobile ? ' h-[100dvh] mobile-layout' : ''}`}
+
     >
       {isMobile ? (
         // Mobile Layout with sliding animation and fixed positioning
