@@ -381,8 +381,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     >
       {/* Chat Header */}
       <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 ${
-        isMobile ? 'px-4 py-3 flex-shrink-0' : 'px-6 py-4'
-      } flex items-center justify-between`}>
+        isMobile ? 'fixed top-0 left-0 right-0 z-50 px-4 py-3' : 'px-6 py-4'
+      } flex items-center justify-between`}
+      style={isMobile ? { 
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingLeft: 'max(16px, env(safe-area-inset-left))',
+        paddingRight: 'max(16px, env(safe-area-inset-right))'
+      } : {}}>
         {!isSearchVisible ? (
           <>
             <div className="flex items-center">
@@ -534,7 +539,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         isMobile ? 'mobile-messages-container' : ''
       } ${
         isMobile && isKeyboardOpen ? 'keyboard-open' : ''
-      }`}>
+      }`}
+      style={isMobile ? {
+        paddingTop: 'calc(64px + env(safe-area-inset-top))',
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))'
+      } : {}}>
         <div 
           ref={messagesContainerRef}
           className={`flex-1 overflow-y-auto ${
@@ -606,9 +615,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
         isMobile 
-          ? 'mobile-input-container px-3 py-2'
+          ? 'fixed bottom-0 left-0 right-0 z-40 mobile-input-container px-3 py-2'
           : 'px-6 py-4'
-      } flex-shrink-0`}>
+      } flex-shrink-0`}
+      style={isMobile ? {
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(12px, env(safe-area-inset-left))',
+        paddingRight: 'max(12px, env(safe-area-inset-right))'
+      } : {}}>
         <form onSubmit={handleSendMessage} className={`flex items-center ${
           isMobile ? 'space-x-1' : 'space-x-3'
         }`}>
