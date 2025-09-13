@@ -427,7 +427,7 @@ const ChatApp: React.FC = () => {
 
   return (
     <div 
-      className={`bg-gray-100 overflow-hidden ${isMobile ? ' h-[100dvh] mobile-layout' : ''}`}
+      className={`bg-gray-100 overflow-hidden h-[100dvh] ${isMobile ? '  mobile-layout' : ''}`}
 
     >
       {isMobile ? (
