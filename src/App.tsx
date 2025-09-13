@@ -8,6 +8,7 @@ import { useConversations } from "./hooks";
 import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
+import { generateUUID } from "./utils";
 import {
   connectWebSocket,
   disconnectWebSocket,
@@ -267,7 +268,7 @@ const ChatApp: React.FC = () => {
 
               const newMessage = {
                 ...msg,
-                id: msg.id || crypto.randomUUID(),
+                id: msg.id || generateUUID(),
                 createdAt: msg.createdAt || new Date().toISOString(),
               };
 
@@ -344,7 +345,7 @@ const ChatApp: React.FC = () => {
                   
                   const newMessage = {
                     ...msg,
-                    id: msg.id || crypto.randomUUID(),
+                    id: msg.id || generateUUID(),
                     createdAt: msg.createdAt || new Date().toISOString(),
                   };
                   
@@ -426,16 +427,15 @@ const ChatApp: React.FC = () => {
 
   return (
     <div 
-      className="bg-gray-100 overflow-hidden"
+      className={`bg-gray-100 overflow-hidden ${isMobile ? 'mobile-layout' : ''}`}
       style={{ 
-        height: isMobile ? `${viewportHeight}px` : '100vh' 
+        height: isMobile ? '100vh' : '100vh' // Use consistent viewport height
       }}
     >
       {isMobile ? (
-        // Mobile Layout with sliding animation and keyboard awareness
+        // Mobile Layout with sliding animation and fixed positioning
         <div 
-          className="relative w-full"
-          style={{ height: `${viewportHeight}px` }}
+          className="relative w-full h-full"
         >
           {/* User List - slides left when chat is open */}
           <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${

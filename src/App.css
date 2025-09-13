@@ -126,11 +126,57 @@
   /* Prevent zoom on input focus */
   input, textarea, select {
     font-size: 16px;
+    transform-origin: left top;
+    transform: scale(1);
   }
   
   /* Prevent pull-to-refresh on mobile chat */
   body {
     overscroll-behavior-y: none;
+    /* Prevent zoom on double tap */
+    touch-action: manipulation;
+  }
+  
+  /* Fix iOS Safari keyboard behavior */
+  .keyboard-fix {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh !important;
+    height: 100dvh !important; /* Dynamic viewport height for better mobile support */
+  }
+  
+  /* Prevent layout shift when keyboard opens */
+  .mobile-layout {
+    position: relative;
+    height: 100vh;
+    height: 100dvh; /* Use dynamic viewport height */
+    overflow: hidden;
+  }
+  
+  /* Fixed input container to prevent jumping */
+  .mobile-input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  /* Adjust messages container when keyboard is open */
+  .mobile-messages-container {
+    height: calc(100vh - 140px); /* Reserve space for header and input */
+    height: calc(100dvh - 140px);
+    transition: none !important; /* Prevent transition glitches */
+  }
+  
+  .mobile-messages-container.keyboard-open {
+    height: calc(100vh - 200px); /* More space when keyboard is open */
+    height: calc(100dvh - 200px);
   }
 }
 

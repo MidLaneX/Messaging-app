@@ -14,7 +14,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { User, Message } from "../types";
-import { formatLastSeen } from "../utils";
+import { formatLastSeen, generateUUID } from "../utils";
 import MessageItem from "./MessageItem";
 import ModernChatLanding from "./UI/ModernChatLanding";
 import EmojiPicker from "./UI/EmojiPicker";
@@ -237,6 +237,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     adjustTextareaHeight();
   }, [newMessage, adjustTextareaHeight]);
 
+  // Handle iOS Safari keyboard behavior
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        // Prevent automatic zoom on iOS
+        target.style.fontSize = '16px';
+        // Scroll to input after a delay
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    };
+
+    const handleFocusOut = () => {
+      // Reset any zoom that might have occurred
+      const bodyStyle = document.body.style as any;
+      if (bodyStyle.zoom) {
+        bodyStyle.zoom = '1';
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, [isMobile]);
+
   // Get merged and deduplicated messages
   const allMessages = useMemo(() => getMergedMessages(), [getMergedMessages]);
 
@@ -256,7 +289,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!newMessage.trim() || !selectedUser || isSending) return;
 
     setIsSending(true);
-    const messageId = crypto.randomUUID();
+    const messageId = generateUUID();
     const message: Message = {
       id: messageId,
       senderId: currentUser.id,
@@ -341,14 +374,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div 
       className={`flex-1 flex flex-col bg-gray-50 ${
-        isMobile && isKeyboardOpen ? 'h-auto' : 'h-full'
+        isMobile ? 'h-full relative' : 'h-full'
       }`}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
       {/* Chat Header */}
       <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 ${
-        isMobile ? 'px-4 py-3' : 'px-6 py-4'
+        isMobile ? 'px-4 py-3 flex-shrink-0' : 'px-6 py-4'
       } flex items-center justify-between`}>
         {!isSearchVisible ? (
           <>
@@ -498,15 +531,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Messages Area */}
       <div className={`flex-1 overflow-hidden flex flex-col bg-gray-100 ${
-        isMobile && isKeyboardOpen ? 'flex-shrink' : ''
+        isMobile ? 'mobile-messages-container' : ''
+      } ${
+        isMobile && isKeyboardOpen ? 'keyboard-open' : ''
       }`}>
         <div 
           ref={messagesContainerRef}
           className={`flex-1 overflow-y-auto ${
             isMobile ? 'px-2 py-1' : 'px-4 py-2'
-          } space-y-1 ${
-            isMobile && isKeyboardOpen ? 'max-h-60' : ''
-          }`} 
+          } space-y-1`} 
           style={{ scrollBehavior: 'auto' }}
         >
           {searchQuery && filteredMessages.length > 0 && (
@@ -573,11 +606,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
         isMobile 
-          ? isKeyboardOpen 
-            ? 'px-3 py-2 pb-3 sticky bottom-0' 
-            : 'px-4 py-5 pb-10 sticky bottom-0'
+          ? 'mobile-input-container px-3 py-2'
           : 'px-6 py-4'
-      }`}>
+      } flex-shrink-0`}>
         <form onSubmit={handleSendMessage} className={`flex items-center ${
           isMobile ? 'space-x-1' : 'space-x-3'
         }`}>

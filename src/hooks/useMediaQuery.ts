@@ -43,23 +43,49 @@ export function useViewportHeight() {
     setInitialHeight(window.innerHeight);
     setViewportHeight(window.innerHeight);
 
+    let timeoutId: NodeJS.Timeout;
+
     const handleResize = () => {
       const currentHeight = window.innerHeight;
       setViewportHeight(currentHeight);
       
       // Consider keyboard open if viewport height decreased by more than 150px
+      // Use a more conservative threshold for better detection
       const heightDifference = initialHeight - currentHeight;
-      setIsKeyboardOpen(heightDifference > 150);
+      const keyboardThreshold = window.innerWidth > 768 ? 200 : 150; // Different thresholds for different screen sizes
+      
+      setIsKeyboardOpen(heightDifference > keyboardThreshold);
     };
 
     const handleOrientationChange = () => {
-      // Reset initial height on orientation change
-      setTimeout(() => {
-        setInitialHeight(window.innerHeight);
-        setViewportHeight(window.innerHeight);
+      // Reset initial height on orientation change with a longer delay
+      // to account for mobile browser UI changes
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const newHeight = window.innerHeight;
+        setInitialHeight(newHeight);
+        setViewportHeight(newHeight);
         setIsKeyboardOpen(false);
-      }, 500);
+      }, 800);
     };
+
+    // Use visualViewport API if available for more accurate detection
+    if (window.visualViewport) {
+      const handleVisualViewportChange = () => {
+        const currentHeight = window.visualViewport?.height || window.innerHeight;
+        setViewportHeight(currentHeight);
+        
+        const heightDifference = initialHeight - currentHeight;
+        setIsKeyboardOpen(heightDifference > 150);
+      };
+
+      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
+      
+      return () => {
+        window.visualViewport?.removeEventListener('resize', handleVisualViewportChange);
+        clearTimeout(timeoutId);
+      };
+    }
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleOrientationChange);
@@ -67,6 +93,7 @@ export function useViewportHeight() {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
+      clearTimeout(timeoutId);
     };
   }, [initialHeight]);
 

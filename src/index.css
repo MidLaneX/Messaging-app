@@ -25,6 +25,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--emerald-50);
+  /* Prevent zoom on mobile */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  /* Improve mobile experience */
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* Prevent zoom on iOS when focusing inputs */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px !important;
+    transform-origin: left top;
+    transform: scale(1) !important;
+  }
 }
 
 code {
