@@ -217,3 +217,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UI/UX inspired by WhatsApp Web
 - Icons and emojis from system defaults
 - Built with Create React App and Tailwind CSS
+
+
+./deploy.sh

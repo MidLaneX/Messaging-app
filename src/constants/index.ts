@@ -30,6 +30,13 @@ export const APP_CONFIG = {
   get CURRENT_USER_ID() {
     return getCurrentUserId();
   },
+  // Performance and reliability settings
+  REQUEST_TIMEOUT: 30000, // 30 seconds
+  RETRY_ATTEMPTS: 3,
+  RETRY_DELAY: 1000, // 1 second
+  CONNECTION_RETRY_DELAY: 5000, // 5 seconds for WebSocket
+  HEARTBEAT_INTERVAL: 30000, // 30 seconds
+  RECONNECT_INTERVAL: 10000, // 10 seconds
 } as const;
 
 export const UI_CONFIG = {
@@ -37,6 +44,16 @@ export const UI_CONFIG = {
   MESSAGE_LIMIT_PER_LOAD: 50,
   TYPING_INDICATOR_TIMEOUT: 3000,
   ONLINE_STATUS_TIMEOUT: 30000,
+  // Mobile optimizations
+  MOBILE_BREAKPOINT: 768,
+  TOUCH_TARGET_SIZE: 44, // Minimum touch target size in pixels
+  ANIMATION_DURATION: 300,
+  DEBOUNCE_DELAY: 300,
+  SCROLL_THRESHOLD: 100,
+  // Performance settings
+  VIRTUAL_LIST_THRESHOLD: 100, // Start virtualizing after 100 items
+  IMAGE_LAZY_LOADING_THRESHOLD: 2, // Load images 2 screens ahead
+  MESSAGE_CACHE_SIZE: 1000, // Keep last 1000 messages in memory
 } as const;
 
 export const MESSAGE_CONFIG = {
