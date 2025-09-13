@@ -147,12 +147,14 @@ const UserList: React.FC<UserListProps> = ({
 
   return (
     <div className={`${
-      isMobile ? 'w-full' : 'w-[400px] min-w-[400px] '
+      isMobile ? 'w-full h-screen flex flex-col' : 'w-[400px] min-w-[400px] '
     } bg-white border-r border-gray-200 flex flex-col h-full shadow-sm`}>
       {/* Professional Green Header */}
-      <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-lg">
+      <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-lg ${
+        isMobile ? 'flex-shrink-0' : ''
+      }`}>
         {/* User Profile Section */}
-        <div className={`${isMobile ? 'p-4' : 'px-5 py-6'} border-b border-emerald-600`}>
+        <div className={`${isMobile ? 'p-3' : 'px-5 py-6'} border-b border-emerald-600`}>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <div className={`${
@@ -220,7 +222,7 @@ const UserList: React.FC<UserListProps> = ({
         </div>
 
         {/* Enhanced Search Bar */}
-        <div className={`${isMobile ? 'p-4' : 'p-5'}`}>
+        <div className={`${isMobile ? 'p-3' : 'p-5'}`}>
           <div className="relative">
             {/* icon */}
             <div className="absolute inset-y-0 z-10 left-0 pl-4 flex items-center pointer-events-none">
@@ -253,11 +255,13 @@ const UserList: React.FC<UserListProps> = ({
       </div>
 
       {/* Professional Green Tabs */}
-      <div className="bg-white border-b border-green-100">
+      <div className={`bg-white border-b border-green-100 ${
+        isMobile ? 'flex-shrink-0' : ''
+      }`}>
         <div className="flex">
           <button
             className={`flex-1 ${
-              isMobile ? 'py-5 px-2 text-xs' : 'py-3 px-4 text-sm'
+              isMobile ? 'py-2 px-2 text-xs' : 'py-3 px-4 text-sm'
             } font-medium transition-all duration-200 relative ${
               activeTab === 'all'
                 ? 'text-green-700 bg-green-50'
@@ -272,7 +276,7 @@ const UserList: React.FC<UserListProps> = ({
           </button>
           <button
             className={`flex-1 ${
-              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+              isMobile ? 'py-2 px-2 text-xs' : 'py-3 px-4 text-sm'
             } font-medium transition-all duration-200 relative ${
               activeTab === 'users'
                 ? 'text-green-700 bg-green-50'
@@ -287,7 +291,7 @@ const UserList: React.FC<UserListProps> = ({
           </button>
           <button
             className={`flex-1 ${
-              isMobile ? 'py-2.5 px-2 text-xs' : 'py-3 px-4 text-sm'
+              isMobile ? 'py-2 px-2 text-xs' : 'py-3 px-4 text-sm'
             } font-medium transition-all duration-200 relative ${
               activeTab === 'groups'
                 ? 'text-green-700 bg-green-50'
@@ -304,7 +308,9 @@ const UserList: React.FC<UserListProps> = ({
       </div>
 
       {/* Conversations List */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50">
+      <div ref={scrollRef} className={`flex-1 overflow-y-auto bg-gray-50 ${
+        isMobile ? 'min-h-0' : ''
+      }`}>
         {searchQuery && (
           <div className="px-4 py-2 bg-white border-b border-gray-100">
             <p className="text-sm text-gray-600">
@@ -410,7 +416,9 @@ const UserList: React.FC<UserListProps> = ({
       </div>
 
       {/* Professional Green Footer with Logout */}
-      <div className="bg-white border-t border-green-100 p-4">
+      <div className={`bg-white border-t border-green-100 ${
+        isMobile ? 'flex-shrink-0 p-3' : 'p-4'
+      }`}>
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center space-x-3 py-3 px-4 text-gray-700 hover:bg-green-50 rounded-lg transition-all duration-200 group border border-transparent hover:border-green-200"
