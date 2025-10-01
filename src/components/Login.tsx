@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { users, User } from '../data/users';
+import Logo from './UI/Logo';
 
 interface LoginProps {
   onUserSelect: (userId: string) => void;
@@ -19,9 +20,18 @@ const Login: React.FC<LoginProps> = ({ onUserSelect }) => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">💬</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">MessagingApp</h1>
-          <p className="text-gray-600">Select your account to continue</p>
+          <div className="flex justify-center mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+              <Logo 
+                variant="svg" 
+                size="lg" 
+                className="transform hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-3">Welcome to Collaborato</h1>
+          <p className="text-gray-600 text-lg">Your team collaboration platform</p>
+          <p className="text-gray-500 text-sm mt-1">Select your account to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

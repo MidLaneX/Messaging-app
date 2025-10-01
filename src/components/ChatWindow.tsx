@@ -29,6 +29,7 @@ import EmojiPicker from "./UI/EmojiPicker";
 import FileAttachmentMenu from "./UI/FileAttachmentMenu";
 import FileUploadProgress from "./UI/FileUploadProgress";
 import PendingFilesPreview from "./UI/PendingFilesPreview";
+import CameraModal from "./UI/CameraModal";
 import { sendChatMessage } from "../services/ws";
 
 interface ChatWindowProps {
@@ -69,6 +70,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   
   // File upload states
   const [uploadingFiles, setUploadingFiles] = useState<Map<string, {
@@ -351,30 +353,69 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [uploadingFiles, uploadFile]);
 
-  // Handle attachment menu actions
-  const handleAttachmentAction = useCallback((action: string) => {
-    if (fileInputRef.current) {
-      switch (action) {
-        case 'image':
-          fileInputRef.current.accept = 'image/*,video/*';
-          fileInputRef.current.click();
-          break;
-        case 'document':
-          fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
-          fileInputRef.current.click();
-          break;
-        case 'camera':
-          // TODO: Implement camera capture
+  // Handle camera capture
+  const handleCameraCapture = useCallback(async () => {
+    try {
+      // Check if getUserMedia is supported
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices) {
+        // Use camera modal for better UX
+        setShowCameraModal(true);
+      } else {
+        // Fallback to file input with capture attribute
+        console.log('getUserMedia not supported, falling back to file input');
+        if (fileInputRef.current) {
           fileInputRef.current.accept = 'image/*';
-          fileInputRef.current.setAttribute('capture', 'environment');
+          // Use the correct capture attribute syntax
+          fileInputRef.current.capture = 'environment';
           fileInputRef.current.click();
-          break;
-        default:
-          break;
+        }
+      }
+    } catch (error) {
+      console.error('Camera capture failed:', error);
+      
+      // Fallback to file input
+      if (fileInputRef.current) {
+        fileInputRef.current.accept = 'image/*';
+        fileInputRef.current.capture = 'environment';
+        fileInputRef.current.click();
       }
     }
+    
     setShowAttachmentMenu(false);
   }, []);
+
+  // Handle camera photo capture from modal
+  const handleCameraPhotoCapture = useCallback((file: File) => {
+    setPendingFiles(prev => [...prev, file]);
+    console.log('Camera photo captured and added to pending files:', file.name);
+  }, []);
+
+  // Handle attachment menu actions
+  const handleAttachmentAction = useCallback((action: string) => {
+    switch (action) {
+      case 'image':
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = 'image/*,video/*';
+          // Remove capture attribute for regular file selection
+          fileInputRef.current.removeAttribute('capture');
+          fileInputRef.current.click();
+        }
+        break;
+      case 'document':
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+          fileInputRef.current.removeAttribute('capture');
+          fileInputRef.current.click();
+        }
+        break;
+      case 'camera':
+        handleCameraCapture();
+        return; // Don't close menu here as it's handled in handleCameraCapture
+      default:
+        break;
+    }
+    setShowAttachmentMenu(false);
+  }, [handleCameraCapture]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -410,6 +451,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setIsMenuOpen(false);
       setShowEmojiPicker(false);
       setShowAttachmentMenu(false);
+      setShowCameraModal(false);
     }
   }, [selectedUser, scrollToBottom]);
 
@@ -588,9 +630,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         setShowEmojiPicker(false);
       } else if (showAttachmentMenu) {
         setShowAttachmentMenu(false);
+      } else if (showCameraModal) {
+        setShowCameraModal(false);
       }
     }
-  }, [isSearchVisible, isMenuOpen, showEmojiPicker, showAttachmentMenu]);
+  }, [isSearchVisible, isMenuOpen, showEmojiPicker, showAttachmentMenu, showCameraModal]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -989,6 +1033,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </form>
         </div>
       </div>
+
+      {/* Camera Modal */}
+      <CameraModal
+        isOpen={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
+        onCapture={handleCameraPhotoCapture}
+        isMobile={isMobile}
+      />
     </div>
   );
 };

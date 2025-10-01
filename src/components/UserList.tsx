@@ -154,7 +154,7 @@ const UserList: React.FC<UserListProps> = ({
         isMobile ? 'flex-shrink-0' : ''
       }`}>
         {/* User Profile Section */}
-        <div className={`${isMobile ? 'p-3' : 'px-5 py-6'} border-b border-emerald-600`}>
+        <div className={`${isMobile ? 'p-3' : 'px-5 py-5'} border-b border-emerald-600`}>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <div className={`${
