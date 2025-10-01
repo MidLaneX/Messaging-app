@@ -6,6 +6,7 @@
 
 /.pnp
 .pnp.js
+deploy.sh
 
 # Environment files with credentials - NEVER COMMIT THESE
 .env
