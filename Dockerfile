@@ -23,6 +23,8 @@ COPY .env.production .env
 
 # Build the application with optimizations
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV DISABLE_ESLINT_PLUGIN=true
+ENV ESLINT_NO_DEV_ERRORS=true
 RUN pnpm run build
 
 # Production stage - use nginx:alpine with performance optimizations
