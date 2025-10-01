@@ -15,10 +15,15 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { User, Message } from "../types";
 import { formatLastSeen, generateUUID } from "../utils";
+import { getFileCategory, getFileIcon, validateFile } from "../utils/fileConfig";
+import { browserFileUploadService, UploadProgress } from "../services/browserFileUpload";
+import { backendUploadService } from "../services/backendUpload";
 import MessageItem from "./MessageItem";
 import ModernChatLanding from "./UI/ModernChatLanding";
 import EmojiPicker from "./UI/EmojiPicker";
 import FileAttachmentMenu from "./UI/FileAttachmentMenu";
+import FileUploadProgress from "./UI/FileUploadProgress";
+import PendingFilesPreview from "./UI/PendingFilesPreview";
 import { sendChatMessage } from "../services/ws";
 
 interface ChatWindowProps {
@@ -59,6 +64,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  
+  // File upload states
+  const [uploadingFiles, setUploadingFiles] = useState<Map<string, {
+    file: File;
+    progress: UploadProgress;
+    isUploading: boolean;
+    isSuccess: boolean;
+    error?: string;
+  }>>(new Map());
+  const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  
+  // Pending files (selected but not yet uploaded)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -143,27 +161,284 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Handle file attachment
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
+    console.log("📁 File input changed:", files);
+    
     if (files && files.length > 0) {
       const file = files[0];
-      console.log('Selected file:', file);
+      console.log('📄 Selected file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
       
-      // Check file size (limit to 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        alert('File size too large. Please select a file under 10MB.');
+      // Validate file
+      const validation = validateFile(file);
+      console.log('🔍 File validation result:', validation);
+      
+      if (!validation.valid) {
+        console.error('❌ File validation failed:', validation.error);
+        alert(validation.error || 'Invalid file selected.');
         return;
       }
       
-      // TODO: Implement file upload logic here
-      // For now, just add a placeholder message with file info
-      const fileInfo = `📎 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-      setNewMessage(prev => prev + fileInfo + ' ');
-      adjustTextareaHeight();
+      console.log('✅ File validation passed, adding to pending files...');
+      // Add to pending files instead of immediate upload
+      setPendingFiles(prev => [...prev, file]);
+    } else {
+      console.warn('⚠️ No files selected');
     }
     setShowAttachmentMenu(false);
     // Reset the input value so the same file can be selected again
     event.target.value = '';
-  }, [adjustTextareaHeight]);
+  }, []);
+
+  // Upload file to R2
+  // Remove pending file
+  const removePendingFile = useCallback((index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const uploadFile = useCallback(async (file: File) => {
+    const uploadId = generateUUID();
+    const initialProgress: UploadProgress = { loaded: 0, total: file.size, percentage: 0 };
+    
+    // Add to uploading files map
+    setUploadingFiles(prev => new Map(prev.set(uploadId, {
+      file,
+      progress: initialProgress,
+      isUploading: true,
+      isSuccess: false,
+    })));
+
+    try {
+      // Try backend upload service first (production-ready)
+      let result;
+      
+      try {
+        console.log('Attempting backend upload...');
+        result = await backendUploadService.uploadFile(
+          file,
+          (progress: number) => {
+            setUploadingFiles(prev => {
+              const newMap = new Map(prev);
+              const existing = newMap.get(uploadId);
+              if (existing) {
+                const progressData: UploadProgress = {
+                  loaded: Math.round((progress / 100) * file.size),
+                  total: file.size,
+                  percentage: progress
+                };
+                newMap.set(uploadId, { ...existing, progress: progressData });
+              }
+              return newMap;
+            });
+          }
+        );
+        
+        if (result.success && result.file) {
+          console.log('Backend upload successful:', result.file);
+          
+          // Mark upload as complete
+          setUploadingFiles(prev => {
+            const newMap = new Map(prev);
+            const existing = newMap.get(uploadId);
+            if (existing) {
+              newMap.set(uploadId, { 
+                ...existing, 
+                isUploading: false, 
+                isSuccess: true,
+                progress: { loaded: file.size, total: file.size, percentage: 100 }
+              });
+            }
+            return newMap;
+          });
+
+          // Create file message
+          const fileMessage: Message = {
+            id: generateUUID(),
+            senderId: currentUser.id,
+            ...(selectedUser?.isGroup 
+              ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+              : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" as const }
+            ),
+            createdAt: new Date().toISOString(),
+            content: '', // Optional caption - can be added later
+            type: "FILE" as const,
+            fileAttachment: {
+              originalName: file.name,
+              fileName: result.file.name,
+              fileSize: result.file.size,
+              mimeType: result.file.type,
+              fileUrl: result.file.url,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: currentUser.id,
+              category: getFileCategory(file.type),
+              icon: getFileIcon(file.type),
+            },
+          };
+
+          // Send via WebSocket
+          const wsMessage = {
+            senderId: currentUser.id,
+            ...(selectedUser?.isGroup 
+              ? { groupId: selectedUser.id, chatType: "GROUP" }
+              : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" }
+            ),
+            content: fileMessage.content,
+            type: "FILE",
+            fileAttachment: fileMessage.fileAttachment,
+          };
+          
+          await sendChatMessage(wsMessage);
+          
+          // Add to local state
+          setWsMessages(prev => [...prev, fileMessage]);
+          
+          console.log('File message sent:', fileMessage);
+          return; // Exit successfully
+        }
+      } catch (backendError) {
+        console.warn('Backend upload failed, falling back to browser upload:', backendError);
+      }
+      
+      // Fallback to browser upload service
+      console.log('Attempting browser upload...');
+      const browserResult = await browserFileUploadService.uploadFile(
+        file,
+        currentUser.id,
+        (progress: UploadProgress) => {
+          setUploadingFiles(prev => {
+            const newMap = new Map(prev);
+            const existing = newMap.get(uploadId);
+            if (existing) {
+              newMap.set(uploadId, { ...existing, progress });
+            }
+            return newMap;
+          });
+        }
+      );
+
+      if (browserResult.success && browserResult.fileUrl) {
+        // Mark upload as complete
+        setUploadingFiles(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(uploadId);
+          if (existing) {
+            newMap.set(uploadId, { 
+              ...existing, 
+              isUploading: false, 
+              isSuccess: true,
+              progress: { loaded: file.size, total: file.size, percentage: 100 }
+            });
+          }
+          return newMap;
+        });
+
+        // Create file message
+        const fileMessage: Message = {
+          id: generateUUID(),
+          senderId: currentUser.id,
+          ...(selectedUser?.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" as const }
+          ),
+          createdAt: new Date().toISOString(),
+          content: '', // Optional caption - can be added later
+          type: "FILE" as const,
+          fileAttachment: {
+            originalName: file.name,
+            fileName: browserResult.fileName || '',
+            fileSize: browserResult.fileSize || file.size,
+            mimeType: browserResult.mimeType || file.type,
+            fileUrl: browserResult.fileUrl,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: currentUser.id,
+            category: getFileCategory(file.type),
+            icon: getFileIcon(file.type),
+          }
+        };
+
+        // Add file message to chat
+        setWsMessages((prev) => [...prev, fileMessage]);
+
+        // Send via WebSocket
+        const wsMessage = {
+          senderId: currentUser.id,
+          ...(selectedUser?.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" }
+            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" }
+          ),
+          content: fileMessage.content,
+          type: "FILE",
+          fileAttachment: fileMessage.fileAttachment,
+        };
+
+        try {
+          await sendChatMessage(wsMessage);
+          console.log("File message sent successfully");
+          
+          // Remove from uploading files after a delay
+          setTimeout(() => {
+            setUploadingFiles(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(uploadId);
+              return newMap;
+            });
+          }, 2000);
+        } catch (error) {
+          console.error("Failed to send file message:", error);
+          // Remove the optimistic message on error
+          setWsMessages((prev) => prev.filter((msg) => msg.id !== fileMessage.id));
+        }
+
+      } else {
+        throw new Error(browserResult.error || 'Upload failed');
+      }
+
+    } catch (error) {
+      console.error('File upload failed:', error);
+      
+      // Mark upload as failed
+      setUploadingFiles(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(uploadId);
+        if (existing) {
+          newMap.set(uploadId, { 
+            ...existing, 
+            isUploading: false, 
+            isSuccess: false,
+            error: error instanceof Error ? error.message : 'Upload failed'
+          });
+        }
+        return newMap;
+      });
+    }
+  }, [currentUser.id, selectedUser, setWsMessages]);
+
+  // Cancel file upload
+  const cancelUpload = useCallback((uploadId: string) => {
+    setUploadingFiles(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(uploadId);
+      return newMap;
+    });
+  }, []);
+
+  // Retry file upload
+  const retryUpload = useCallback((uploadId: string) => {
+    const uploadInfo = uploadingFiles.get(uploadId);
+    if (uploadInfo && uploadInfo.file) {
+      // Remove the failed upload
+      setUploadingFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(uploadId);
+        return newMap;
+      });
+      // Start new upload
+      uploadFile(uploadInfo.file);
+    }
+  }, [uploadingFiles, uploadFile]);
 
   // Handle attachment menu actions
   const handleAttachmentAction = useCallback((action: string) => {
@@ -286,63 +561,91 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUser || isSending) return;
+    
+    const hasText = newMessage.trim();
+    const hasFiles = pendingFiles.length > 0;
+    
+    if (!hasText && !hasFiles) return;
+    if (!selectedUser || isSending) return;
 
     setIsSending(true);
-    const messageId = generateUUID();
-    const message: Message = {
-      id: messageId,
-      senderId: currentUser.id,
-      ...(selectedUser.isGroup 
-        ? { groupId: selectedUser.id, chatType: "GROUP" as const }
-        : { recipientId: selectedUser.id, chatType: "PRIVATE" as const }
-      ),
-      createdAt: new Date().toISOString(),
-      content: newMessage.trim(),
-      type: "TEXT" as Message["type"],
-    };
-
-    console.log("Sending message for user:", currentUser.id);
-    console.log("Message type:", selectedUser.isGroup ? "GROUP" : "PRIVATE");
-
-    // Optimistically add message to UI
-    setWsMessages((prev) => [...prev, message]);
-    setNewMessage("");
-    
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-    
-    // Smooth scroll for sending new message
-    setTimeout(() => scrollToBottom('smooth'), 0);
-
-    // Send via WebSocket
-    const wsMessage = {
-      senderId: currentUser.id,
-      ...(selectedUser.isGroup 
-        ? { groupId: selectedUser.id, chatType: "GROUP" }
-        : { recipientId: selectedUser.id, chatType: "PRIVATE" }
-      ),
-      content: message.content,
-      type: "TEXT",
-    };
 
     try {
-      await sendChatMessage(wsMessage);
-      console.log("Message sent successfully");
-      // Remove the optimistic message - the real one will come via WebSocket
-      setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      // Send text message if present
+      if (hasText) {
+        const messageId = generateUUID();
+        const message: Message = {
+          id: messageId,
+          senderId: currentUser.id,
+          ...(selectedUser.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+            : { recipientId: selectedUser.id, chatType: "PRIVATE" as const }
+          ),
+          createdAt: new Date().toISOString(),
+          content: newMessage.trim(),
+          type: "TEXT" as Message["type"],
+        };
+
+        console.log("Sending message for user:", currentUser.id);
+        console.log("Message type:", selectedUser.isGroup ? "GROUP" : "PRIVATE");
+
+        // Optimistically add message to UI
+        setWsMessages((prev) => [...prev, message]);
+        
+        // Send via WebSocket
+        const wsMessage = {
+          senderId: currentUser.id,
+          ...(selectedUser.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" }
+            : { recipientId: selectedUser.id, chatType: "PRIVATE" }
+          ),
+          content: message.content,
+          type: "TEXT",
+        };
+
+        try {
+          await sendChatMessage(wsMessage);
+          console.log("Text message sent successfully");
+          // Remove the optimistic message - the real one will come via WebSocket
+          setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+        } catch (error) {
+          console.error("Failed to send text message:", error);
+          // Remove the optimistic message on error
+          setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+          throw error; // Re-throw to be caught by outer try-catch
+        }
+      }
+
+      // Upload and send file messages for each pending file
+      if (hasFiles) {
+        for (const file of pendingFiles) {
+          await uploadFile(file);
+        }
+        // Clear pending files after starting uploads
+        setPendingFiles([]);
+      }
+
+      // Clear input and reset
+      setNewMessage("");
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+      
+      // Smooth scroll for sending new message
+      setTimeout(() => scrollToBottom('smooth'), 0);
+
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Remove the optimistic message on error
-      setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-      // Re-add the text to input for retry
-      setNewMessage(message.content);
+      // Re-add the text to input for retry if it was a text message
+      if (hasText) {
+        setNewMessage(newMessage);
+      }
     } finally {
       setIsSending(false);
     }
-  }, [newMessage, selectedUser, isSending, currentUser.id, setWsMessages, scrollToBottom]);
+  }, [newMessage, pendingFiles, selectedUser, isSending, currentUser.id, uploadFile, sendChatMessage, setWsMessages, scrollToBottom]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -589,6 +892,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ) : (
             <div className="space-y-1">
+              {/* Show uploading files */}
+              {Array.from(uploadingFiles.entries()).map(([uploadId, uploadInfo]) => (
+                <FileUploadProgress
+                  key={uploadId}
+                  file={uploadInfo.file}
+                  progress={uploadInfo.progress}
+                  isUploading={uploadInfo.isUploading}
+                  isSuccess={uploadInfo.isSuccess}
+                  error={uploadInfo.error}
+                  onCancel={() => cancelUpload(uploadId)}
+                  onRetry={() => retryUpload(uploadId)}
+                  isMobile={isMobile}
+                />
+              ))}
+              
+              {/* Render messages */}
               {filteredMessages.map((message, index, arr) => {
                 const isCurrentUser = message.senderId === currentUser.id;
                 const previousMessage = index > 0 ? arr[index - 1] : undefined;
@@ -603,6 +922,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     previousMessage={previousMessage}
                     isGroupChat={selectedUser.isGroup}
                     isMobile={isMobile}
+                    currentUserId={currentUser.id}
                   />
                 );
               })}
@@ -615,14 +935,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Message Input */}
       <div className={`bg-white border-t border-gray-200 ${
         isMobile 
-          ? 'fixed bottom-0 left-0 right-0 z-40 mobile-input-container px-3 py-2'
-          : 'px-6 py-4'
+          ? 'fixed bottom-0 left-0 right-0 z-40 mobile-input-container'
+          : ''
       } flex-shrink-0`}
       style={isMobile ? {
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         paddingLeft: 'max(12px, env(safe-area-inset-left))',
         paddingRight: 'max(12px, env(safe-area-inset-right))'
       } : {}}>
+        {/* Pending Files Preview */}
+        <PendingFilesPreview
+          files={pendingFiles}
+          onRemoveFile={removePendingFile}
+          isMobile={isMobile}
+        />
+        
+        <div className={`${isMobile ? 'px-3 py-2' : 'px-6 py-4'}`}>
         <form onSubmit={handleSendMessage} className={`flex items-center ${
           isMobile ? 'space-x-1' : 'space-x-3'
         }`}>
@@ -707,16 +1035,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
           <button
             type="submit"
-            disabled={!newMessage.trim() || isSending}
+            disabled={(!newMessage.trim() && pendingFiles.length === 0) || isSending}
             className={`flex-shrink-0 flex items-center justify-center ${
               isMobile ? 'w-8 h-8' : 'w-12 h-12'
             } rounded-full transition-all duration-200 ${
-              newMessage.trim() && !isSending
+              (newMessage.trim() || pendingFiles.length > 0) && !isSending
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
-            title={isSending ? "Sending..." : "Send message"}
-            aria-label={isSending ? "Sending message" : "Send message"}
+            title={isSending ? "Sending..." : pendingFiles.length > 0 ? `Send ${pendingFiles.length} file${pendingFiles.length !== 1 ? 's' : ''}` : "Send message"}
+            aria-label={isSending ? "Sending message" : pendingFiles.length > 0 ? `Send ${pendingFiles.length} file${pendingFiles.length !== 1 ? 's' : ''}` : "Send message"}
           >
             {isSending ? (
               <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-spin`} fill="none" viewBox="0 0 24 24">
@@ -730,6 +1058,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

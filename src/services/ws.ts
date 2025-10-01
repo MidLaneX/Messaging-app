@@ -5,10 +5,12 @@ import { APP_CONFIG } from '../constants';
 export interface ChatMessage {
   senderId: string;
   recipientId?: string;
+  groupId?: string;
   content: string;
   chatId?: string;
   chatType?: string;
   type?: string;
+  fileAttachment?: any; // Add support for file attachments
   // add other fields as needed
 }
 
@@ -20,6 +22,8 @@ let subscriptionCounter = 0;
 let isConnecting = false;
 let currentUserId: string | null = null;
 let connectionPromise: Promise<void> | null = null;
+let messageQueue: ChatMessage[] = []; // Queue messages while connecting
+let heartbeatInterval: NodeJS.Timeout | null = null;
 
 export function connectWebSocket(
   userId: string,

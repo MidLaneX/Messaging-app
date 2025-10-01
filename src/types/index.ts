@@ -11,6 +11,20 @@ export interface User {
 export type MessageType = "TEXT" | "IMAGE" | "FILE" | "AUDIO";
 export type ChatType = "PRIVATE" | "GROUP";
 
+export interface FileAttachment {
+  originalName: string;
+  fileName: string; // Secure filename in storage
+  fileSize: number;
+  mimeType: string;
+  fileUrl: string;
+  downloadUrl?: string; // Signed URL for secure download
+  uploadedAt: string;
+  uploadedBy: string;
+  category: 'image' | 'video' | 'audio' | 'pdf' | 'document' | 'spreadsheet' | 'presentation' | 'archive' | 'file';
+  icon: string;
+  previewUrl?: string; // For images/thumbnails
+}
+
 export interface Message {
   id: string; // UUID string
   senderId: string;
@@ -22,10 +36,13 @@ export interface Message {
   encryptedContent?: string;
   type: "TEXT" | "FILE" | "IMAGE" | "SYSTEM";
   chatType: "PRIVATE" | "GROUP";
+  // Legacy file fields (kept for backward compatibility)
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
   fileType?: string;
+  // New file attachment structure
+  fileAttachment?: FileAttachment;
   encryptionKeyId?: string; // UUID string
   createdAt?: string | null; // ISO string
   deliveredAt?: string | null; // ISO string

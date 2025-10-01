@@ -2,6 +2,7 @@ import React from 'react';
 import { Message, User } from '../types';
 import { formatMessageTime, formatMessageDate, isSameDay } from '../utils';
 import { usersMap } from '../data/users';
+import FileAttachment from './UI/FileAttachment';
 
 interface MessageItemProps {
   message: Message;
@@ -12,6 +13,8 @@ interface MessageItemProps {
   isGroupChat?: boolean;
   /** Whether the component is being used on mobile */
   isMobile?: boolean;
+  /** Current user ID for file access control */
+  currentUserId?: string;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({ 
@@ -21,7 +24,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   user,
   previousMessage,
   isGroupChat = false,
-  isMobile = false
+  isMobile = false,
+  currentUserId = '',
 }) => {
   const formatTime = (date: Date): string => {
     return formatMessageTime(date);
@@ -145,11 +149,36 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </div>
           )}
 
-          <div className={`${
-            isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
-          } whitespace-pre-wrap break-words`}>
-            {message.content}
-          </div>
+          {/* Message Content */}
+          {message.type === 'FILE' && message.fileAttachment ? (
+            <div className="space-y-2">
+              {/* Text content if any */}
+              {message.content && message.content.trim() && (
+                <div className={`${
+                  isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
+                } whitespace-pre-wrap break-words`}>
+                  {message.content}
+                </div>
+              )}
+              
+              {/* File Attachment */}
+              <div className="inline-block">
+                <FileAttachment
+                  fileAttachment={message.fileAttachment}
+                  currentUserId={currentUserId}
+                  isMobile={isMobile}
+                  isCurrentUser={isCurrentUser}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Regular text message */
+            <div className={`${
+              isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
+            } whitespace-pre-wrap break-words`}>
+              {message.content}
+            </div>
+          )}
 
           <div className={`flex items-center justify-end space-x-1 mt-1 ${
             isMobile ? 'text-xs' : 'text-sm'

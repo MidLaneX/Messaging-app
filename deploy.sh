@@ -64,10 +64,10 @@ gcloud run deploy ${SERVICE_NAME} \
   --cpu-throttling \
   --execution-environment gen2 \
   --set-env-vars "NODE_ENV=production,GENERATE_SOURCEMAP=false" \
-  --set-env-vars "REACT_APP_API_URL=https://collaba-backend-22526857343.us-central1.run.app" \
-  --set-env-vars "REACT_APP_WS_URL=wss://collaba-backend-22526857343.us-central1.run.app" \
-  --set-env-vars "API_BASE_URL=https://collaba-backend-22526857343.us-central1.run.app" \
-  --set-env-vars "WEBSOCKET_URL=wss://collaba-backend-22526857343.us-central1.run.app" \
+  --set-env-vars "REACT_APP_API_URL=https://collaba-backend-22526857343.asia-south1.run.app" \
+  --set-env-vars "REACT_APP_WS_URL=wss://collaba-backend-22526857343.asia-south1.run.app" \
+  --set-env-vars "API_BASE_URL=https://collaba-backend-22526857343.asia-south1.run.app" \
+  --set-env-vars "WEBSOCKET_URL=wss://collaba-backend-22526857343.asia-south1.run.app" \
   --set-env-vars "DISABLE_ESLINT_PLUGIN=true,ESLINT_NO_DEV_ERRORS=true"
 
 if [ $? -eq 0 ]; then

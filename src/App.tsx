@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import "./App.css";
-import UserList from "./components/UserList";
-import ChatWindow from "./components/ChatWindow";
 import Login from "./components/Login";
 import { UserProvider, useUser } from "./context/UserContext";
 import { useConversations } from "./hooks";
@@ -9,6 +7,7 @@ import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import { generateUUID } from "./utils";
+import { messagePersistence } from "./services/messagePersistence";
 import {
   connectWebSocket,
   disconnectWebSocket,
@@ -19,13 +18,32 @@ import {
 } from "./services/ws";
 import "./utils/websocketDebug"; // Import debug utilities
 
+// Lazy load heavy components
+const UserList = React.lazy(() => import("./components/UserList"));
+const ChatWindow = React.lazy(() => import("./components/ChatWindow"));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 // Main chat application component
 const ChatApp: React.FC = () => {
   const { currentUserId, currentUserName, isLoggedIn } = useUser();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [wsMessages, setWsMessages] = useState<Message[]>([]);
+  const [wsMessages, setWsMessages] = useState<Message[]>(() => {
+    // Clean up old messages first
+    messagePersistence.cleanupOldMessages();
+    
+    // Load persisted WebSocket messages on initialization
+    const persistedMessages = messagePersistence.loadWsMessages();
+    console.log(`📱 Loaded ${persistedMessages.length} persisted WebSocket messages`);
+    return persistedMessages;
+  });
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
@@ -200,6 +218,13 @@ const ChatApp: React.FC = () => {
     fetchMessages();
   }, [selectedUser, currentUser.id]);
 
+  // Persist WebSocket messages to localStorage whenever they change
+  useEffect(() => {
+    if (wsMessages.length > 0) {
+      messagePersistence.saveWsMessages(wsMessages);
+    }
+  }, [wsMessages]);
+
   // Connect WebSocket and set up subscription on mount
   useEffect(() => {
     console.log(`Setting up WebSocket connection for user: ${currentUser.id}`);
@@ -254,9 +279,20 @@ const ChatApp: React.FC = () => {
                   new Date(msg.createdAt || new Date().toISOString()).getTime()
                 );
 
+                // For file messages, also check fileAttachment
+                if (msg.type === 'FILE' && existingMsg.type === 'FILE') {
+                  return (
+                    existingMsg.senderId === msg.senderId &&
+                    existingMsg.fileAttachment?.originalName === msg.fileAttachment?.originalName &&
+                    existingMsg.fileAttachment?.fileSize === msg.fileAttachment?.fileSize &&
+                    timeDiff < 2000 // 2 seconds tolerance
+                  );
+                }
+
                 return (
                   existingMsg.senderId === msg.senderId &&
                   existingMsg.content === msg.content &&
+                  existingMsg.type === msg.type &&
                   timeDiff < 2000 // 2 seconds tolerance
                 );
               });
@@ -330,10 +366,23 @@ const ChatApp: React.FC = () => {
                       new Date(existingMsg.createdAt ?? new Date().toISOString()).getTime() -
                         new Date(msg.createdAt || new Date().toISOString()).getTime()
                     );
+                    
+                    // For file messages, also check fileAttachment
+                    if (msg.type === 'FILE' && existingMsg.type === 'FILE') {
+                      return (
+                        existingMsg.senderId === msg.senderId &&
+                        existingMsg.fileAttachment?.originalName === msg.fileAttachment?.originalName &&
+                        existingMsg.fileAttachment?.fileSize === msg.fileAttachment?.fileSize &&
+                        existingMsg.groupId === msg.groupId &&
+                        timeDiff < 2000
+                      );
+                    }
+                    
                     return (
                       existingMsg.senderId === msg.senderId &&
                       existingMsg.content === msg.content &&
                       existingMsg.groupId === msg.groupId &&
+                      existingMsg.type === msg.type &&
                       timeDiff < 2000
                     );
                   });
@@ -439,6 +488,45 @@ const ChatApp: React.FC = () => {
           <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
             showChatView ? '-translate-x-full' : 'translate-x-0'
           }`}>
+            <Suspense fallback={<LoadingSpinner />}>
+              <UserList
+                conversations={enhancedConversations}
+                selectedUser={selectedUser}
+                onUserSelect={handleUserSelect}
+                currentUserId={currentUser.id}
+                loading={loading}
+                hasMore={hasMore}
+                onLoadMore={loadMore}
+                isMobile={true}
+              />
+            </Suspense>
+          </div>
+
+          {/* Chat Window - slides in from right when chat is selected */}
+          {selectedUser && (
+            <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+              showChatView ? 'translate-x-0' : 'translate-x-full'
+            }`}>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ChatWindow
+                  selectedUser={selectedUser}
+                  currentUser={currentUser}
+                  messages={messages}
+                  wsMessages={filteredWsMessages}
+                  setWsMessages={setWsMessages}
+                  loadingMessages={loadingMessages}
+                  isMobile={true}
+                  onBackPress={handleBackToUserList}
+                  isKeyboardOpen={isKeyboardOpen}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Desktop Layout - side by side
+        <div className="flex h-full">
+          <Suspense fallback={<LoadingSpinner />}>
             <UserList
               conversations={enhancedConversations}
               selectedUser={selectedUser}
@@ -447,51 +535,20 @@ const ChatApp: React.FC = () => {
               loading={loading}
               hasMore={hasMore}
               onLoadMore={loadMore}
-              isMobile={true}
+              isMobile={false}
             />
-          </div>
-
-          {/* Chat Window - slides in from right when chat is selected */}
-          {selectedUser && (
-            <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-              showChatView ? 'translate-x-0' : 'translate-x-full'
-            }`}>
-              <ChatWindow
-                selectedUser={selectedUser}
-                currentUser={currentUser}
-                messages={messages}
-                wsMessages={filteredWsMessages}
-                setWsMessages={setWsMessages}
-                loadingMessages={loadingMessages}
-                isMobile={true}
-                onBackPress={handleBackToUserList}
-                isKeyboardOpen={isKeyboardOpen}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        // Desktop Layout - side by side
-        <div className="flex h-full">
-          <UserList
-            conversations={enhancedConversations}
-            selectedUser={selectedUser}
-            onUserSelect={handleUserSelect}
-            currentUserId={currentUser.id}
-            loading={loading}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            isMobile={false}
-          />
-          <ChatWindow
-            selectedUser={selectedUser}
-            currentUser={currentUser}
-            messages={messages}
-            wsMessages={filteredWsMessages}
-            setWsMessages={setWsMessages}
-            loadingMessages={loadingMessages}
-            isMobile={false}
-          />
+          </Suspense>
+          <Suspense fallback={<LoadingSpinner />}>
+            <ChatWindow
+              selectedUser={selectedUser}
+              currentUser={currentUser}
+              messages={messages}
+              wsMessages={filteredWsMessages}
+              setWsMessages={setWsMessages}
+              loadingMessages={loadingMessages}
+              isMobile={false}
+            />
+          </Suspense>
         </div>
       )}
     </div>
