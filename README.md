@@ -1,22 +1,25 @@
 # Messaging App
 
-A modern, WhatsApp-inspired messaging application built with React, TypeScript, and Tailwind CSS.
+A modern, WhatsApp-inspired messaging application built with React, TypeScript, and Tailwind CSS with real-time WebSocket communication.
 
 ## Features
 
 - 🎨 Modern, responsive UI inspired by WhatsApp
-- 💬 Real-time messaging interface
+- 💬 Real-time messaging with WebSocket support
 - 👥 User list with online status indicators
 - 📱 Mobile-first responsive design
 - ⚡ Fast and smooth animations
 - 🔔 Message status indicators (sent, delivered, read)
 - 📅 Smart date separators
 - 🎭 Emoji support
+- 🌐 Environment-based configuration for different deployments
 
 ## Tech Stack
 
 - **Frontend**: React 19+ with TypeScript
 - **Styling**: Tailwind CSS with custom WhatsApp-inspired theme
+- **Real-time Communication**: WebSocket with STOMP protocol
+- **HTTP Client**: Axios for API calls
 - **Build Tool**: Create React App
 - **Package Manager**: pnpm
 - **Code Quality**: ESLint, TypeScript strict mode
@@ -70,14 +73,63 @@ pnpm install
 npm install
 ```
 
-3. Start the development server:
+3. Configure environment variables:
+```bash
+# Copy the example environment file
+cp .env .env.local
+
+# Edit .env.local with your backend URLs
+# REACT_APP_API_URL="http://localhost:8090"
+# REACT_APP_WS_URL="ws://localhost:8090"
+```
+
+4. Start the development server:
 ```bash
 pnpm start
 # or
 npm start
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+5. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+
+## Environment Configuration
+
+The application uses environment variables to configure API endpoints for different environments:
+
+### Required Environment Variables
+
+- `REACT_APP_API_URL` - Base URL for REST API calls
+- `REACT_APP_WS_URL` - WebSocket URL for real-time messaging
+
+### Environment Files
+
+- `.env` - Default configuration (local development)
+- `.env.development` - Development environment
+- `.env.production` - Production environment
+
+### Production Setup
+
+1. Update `.env.production` with your production URLs:
+```properties
+REACT_APP_API_URL="https://your-api.com"
+REACT_APP_WS_URL="wss://your-api.com"
+```
+
+2. Build for production:
+```bash
+pnpm build
+```
+
+3. Deploy the `build/` folder to your web server.
+
+For detailed environment setup instructions, see [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md).
+
+### Environment Verification
+
+Run the environment check script to verify your configuration:
+```bash
+./scripts/check-environment.sh
+```
 
 ## Available Scripts
 
@@ -165,3 +217,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UI/UX inspired by WhatsApp Web
 - Icons and emojis from system defaults
 - Built with Create React App and Tailwind CSS
+
+
+./deploy.sh

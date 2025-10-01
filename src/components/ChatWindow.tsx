@@ -1,210 +1,860 @@
-import React, { useState, useRef, useEffect } from "react";
+/**
+ * ChatWindow Component - Professional messaging interface
+ * 
+ * Features:
+ * - Real-time messaging with WebSocket support
+ * - Message deduplication and merging
+ * - Search functionality with highlighting
+ * - Responsive design with modern UI
+ * - Accessibility features (ARIA labels, keyboard navigation)
+ * - Auto-scrolling and textarea auto-resize
+ * - Loading states and error handling
+ * - Optimistic UI updates
+ */
+
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { User, Message } from "../types";
-import { formatLastSeen } from "../utils";
+import { formatLastSeen, generateUUID } from "../utils";
+import { getFileCategory, getFileIcon, validateFile } from "../utils/fileConfig";
+import { backendFileService } from "../services/backendFileService";
 import MessageItem from "./MessageItem";
+
+interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+}
 import ModernChatLanding from "./UI/ModernChatLanding";
+import EmojiPicker from "./UI/EmojiPicker";
+import FileAttachmentMenu from "./UI/FileAttachmentMenu";
+import FileUploadProgress from "./UI/FileUploadProgress";
+import PendingFilesPreview from "./UI/PendingFilesPreview";
 import { sendChatMessage } from "../services/ws";
 
 interface ChatWindowProps {
+  /** Currently selected user/group for conversation */
   selectedUser: User | null;
+  /** Current authenticated user */
   currentUser: User;
+  /** Loading state for message fetching */
   loadingMessages: boolean;
+  /** Messages from API/database */
   messages: Message[];
+  /** Real-time messages from WebSocket (pre-filtered for selected user) */
   wsMessages: Message[];
+  /** Function to update WebSocket messages */
   setWsMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  /** Whether the component is being used on mobile */
+  isMobile?: boolean;
+  /** Callback for back button press on mobile */
+  onBackPress?: () => void;
+  /** Whether keyboard is open on mobile (for layout adjustments) */
+  isKeyboardOpen?: boolean;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   selectedUser,
   currentUser,
   messages,
-  wsMessages,
+  wsMessages, // Now pre-filtered for the selected user
   setWsMessages,
+  isMobile = false,
+  onBackPress,
+  isKeyboardOpen = false,
 }) => {
   const [newMessage, setNewMessage] = useState("");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  
+  // File upload states
+  const [uploadingFiles, setUploadingFiles] = useState<Map<string, {
+    file: File;
+    progress: UploadProgress;
+    isUploading: boolean;
+    isSuccess: boolean;
+    error?: string;
+  }>>(new Map());
+  const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  
+  // Pending files (selected but not yet uploaded)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Function to deduplicate and merge messages prioritizing WebSocket messages
+  const getMergedMessages = useCallback(() => {
+    if (!selectedUser) return [];
 
-  // Filter wsMessages to only show messages relevant to current chat
-  const filteredWsMessages = wsMessages.filter((msg) => {
-    if (!selectedUser) return false;
+    // Create a map to track unique messages by content + timestamp + sender
+    const messageMap = new Map<string, Message>();
+
+    // First add API messages
+    messages.forEach(msg => {
+      const key = `${msg.senderId}-${msg.content}-${new Date(msg.createdAt || "").getTime()}`;
+      messageMap.set(key, msg);
+    });
+
+    // Then add WebSocket messages (they will overwrite API messages if they're the same)
+    wsMessages.forEach(msg => {
+      const key = `${msg.senderId}-${msg.content}-${new Date(msg.createdAt || "").getTime()}`;
+      // WebSocket messages take precedence
+      messageMap.set(key, msg);
+    });
+
+    // Convert back to array and sort by timestamp
+    return Array.from(messageMap.values()).sort(
+      (a, b) =>
+        new Date(a.createdAt || "").getTime() -
+        new Date(b.createdAt || "").getTime()
+    );
+  }, [selectedUser, messages, wsMessages]);
+
+  const scrollToBottom = useCallback((behavior: 'auto' | 'smooth' = 'auto') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+    // Fallback to scrollIntoView
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Auto-resize textarea
+  const adjustTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const maxHeight = 120; // 6 lines roughly
+      textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    }
+  }, []);
+
+  // Handle message input change
+  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewMessage(e.target.value);
+    adjustTextareaHeight();
+  }, [adjustTextareaHeight]);
+
+  // Handle search functionality
+  const handleSearchToggle = useCallback(() => {
+    setIsSearchVisible(prev => !prev);
+    setSearchQuery("");
+  }, []);
+
+  // Handle menu toggle
+  const handleMenuToggle = useCallback(() => {
+    setIsMenuOpen(prev => !prev);
+  }, []);
+
+  // Handle emoji selection
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    adjustTextareaHeight();
+    // Focus back to textarea
+    textareaRef.current?.focus();
+  }, [adjustTextareaHeight]);
+
+  // Handle file attachment
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    console.log("📁 File input changed:", files);
     
-    const isRelevantMessage =
-      (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
-      (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
-    
-    return isRelevantMessage;
-  });
+    if (files && files.length > 0) {
+      const file = files[0];
+      console.log('📄 Selected file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
+      
+      // Validate file
+      const validation = validateFile(file);
+      console.log('🔍 File validation result:', validation);
+      
+      if (!validation.valid) {
+        console.error('❌ File validation failed:', validation.error);
+        alert(validation.error || 'Invalid file selected.');
+        return;
+      }
+      
+      console.log('✅ File validation passed, adding to pending files...');
+      // Add to pending files instead of immediate upload
+      setPendingFiles(prev => [...prev, file]);
+    } else {
+      console.warn('⚠️ No files selected');
+    }
+    setShowAttachmentMenu(false);
+    // Reset the input value so the same file can be selected again
+    event.target.value = '';
+  }, []);
 
+  // Upload file to R2
+  // Remove pending file
+  const removePendingFile = useCallback((index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const uploadFile = useCallback(async (file: File) => {
+    const uploadId = generateUUID();
+    const initialProgress: UploadProgress = { loaded: 0, total: file.size, percentage: 0 };
+    
+    // Add to uploading files map
+    setUploadingFiles(prev => new Map(prev.set(uploadId, {
+      file,
+      progress: initialProgress,
+      isUploading: true,
+      isSuccess: false,
+    })));
+
+    try {
+      console.log('Attempting backend file upload...');
+      const result = await backendFileService.uploadFile(
+        file,
+        currentUser.id,
+        (progress: UploadProgress) => {
+          setUploadingFiles(prev => {
+            const newMap = new Map(prev);
+            const existing = newMap.get(uploadId);
+            if (existing) {
+              newMap.set(uploadId, { ...existing, progress });
+            }
+            return newMap;
+          });
+        }
+      );
+      
+      if (result.success && result.fileUrl && result.fileId) {
+        console.log('Backend file upload successful:', result);
+        
+        // Mark upload as complete
+        setUploadingFiles(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(uploadId);
+          if (existing) {
+            newMap.set(uploadId, { 
+              ...existing, 
+              isUploading: false, 
+              isSuccess: true,
+              progress: { loaded: file.size, total: file.size, percentage: 100 }
+            });
+          }
+          return newMap;
+        });
+
+        // Create file message
+        const fileMessage: Message = {
+          id: generateUUID(),
+          senderId: currentUser.id,
+          ...(selectedUser?.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" as const }
+          ),
+          createdAt: new Date().toISOString(),
+          content: '', // Optional caption - can be added later
+          type: "FILE" as const,
+          fileAttachment: {
+            originalName: file.name,
+            fileName: result.fileName || file.name,
+            fileSize: result.fileSize || file.size,
+            mimeType: result.mimeType || file.type,
+            fileUrl: result.fileUrl,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: currentUser.id,
+            category: getFileCategory(file.type),
+            icon: getFileIcon(file.type),
+            fileId: result.fileId, // Store file ID for backend operations
+          },
+        };
+
+        // Send via WebSocket
+        const wsMessage = {
+          senderId: currentUser.id,
+          ...(selectedUser?.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" }
+            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" }
+          ),
+          content: fileMessage.content,
+          type: "FILE",
+          fileId: result.fileId, // Send file ID instead of fileAttachment object
+        };
+        
+        await sendChatMessage(wsMessage);
+        
+        // Add to local state
+        setWsMessages(prev => [...prev, fileMessage]);
+        
+        console.log('File message sent:', fileMessage);
+
+        // Remove from uploading files after a delay
+        setTimeout(() => {
+          setUploadingFiles(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(uploadId);
+            return newMap;
+          });
+        }, 2000);
+
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+    } catch (error) {
+      console.error('File upload failed:', error);
+      // Mark upload as failed
+      setUploadingFiles(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(uploadId);
+        if (existing) {
+          newMap.set(uploadId, {
+            ...existing,
+            isUploading: false,
+            isSuccess: false,
+            error: error instanceof Error ? error.message : 'Upload failed'
+          });
+        }
+        return newMap;
+      });
+    }
+  }, [currentUser.id, selectedUser, setWsMessages]);
+
+  // Cancel file upload
+  const cancelUpload = useCallback((uploadId: string) => {
+    setUploadingFiles(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(uploadId);
+      return newMap;
+    });
+  }, []);
+
+  // Retry file upload
+  const retryUpload = useCallback((uploadId: string) => {
+    const uploadInfo = uploadingFiles.get(uploadId);
+    if (uploadInfo && uploadInfo.file) {
+      // Remove the failed upload
+      setUploadingFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(uploadId);
+        return newMap;
+      });
+      // Start new upload
+      uploadFile(uploadInfo.file);
+    }
+  }, [uploadingFiles, uploadFile]);
+
+  // Handle attachment menu actions
+  const handleAttachmentAction = useCallback((action: string) => {
+    if (fileInputRef.current) {
+      switch (action) {
+        case 'image':
+          fileInputRef.current.accept = 'image/*,video/*';
+          fileInputRef.current.click();
+          break;
+        case 'document':
+          fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+          fileInputRef.current.click();
+          break;
+        case 'camera':
+          // TODO: Implement camera capture
+          fileInputRef.current.accept = 'image/*';
+          fileInputRef.current.setAttribute('capture', 'environment');
+          fileInputRef.current.click();
+          break;
+        default:
+          break;
+      }
+    }
+    setShowAttachmentMenu(false);
+  }, []);
+
+  // Close menu when clicking outside
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, filteredWsMessages]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+    if (isMenuOpen || showEmojiPicker || showAttachmentMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen, showEmojiPicker, showAttachmentMenu]);
+
+  // Immediately scroll to bottom when chat opens
+  useEffect(() => {
+    if (selectedUser) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => scrollToBottom('auto'), 0);
+      // Clear search when switching users
+      setSearchQuery("");
+      setIsSearchVisible(false);
+      setIsMenuOpen(false);
+      setShowEmojiPicker(false);
+      setShowAttachmentMenu(false);
+    }
+  }, [selectedUser, scrollToBottom]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom('auto');
+  }, [messages.length, wsMessages.length, scrollToBottom]);
+
+  // Auto-resize textarea on mount and message change
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [newMessage, adjustTextareaHeight]);
+
+  // Handle iOS Safari keyboard behavior
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        // Prevent automatic zoom on iOS
+        target.style.fontSize = '16px';
+        // Scroll to input after a delay
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    };
+
+    const handleFocusOut = () => {
+      // Reset any zoom that might have occurred
+      const bodyStyle = document.body.style as any;
+      if (bodyStyle.zoom) {
+        bodyStyle.zoom = '1';
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, [isMobile]);
+
+  // Get merged and deduplicated messages
+  const allMessages = useMemo(() => getMergedMessages(), [getMergedMessages]);
+
+  const filteredMessages = useMemo(
+    () => allMessages.filter(message => {
+      // If no search query, show all messages
+      if (!searchQuery.trim()) return true;
+      
+      const query = searchQuery.toLowerCase();
+      
+      // Check message content
+      if (message.content && message.content.toLowerCase().includes(query)) {
+        return true;
+      }
+      
+      // Check file attachment name for file messages
+      if (message.type === 'FILE' && message.fileAttachment) {
+        const fileName = message.fileAttachment.originalName || message.fileAttachment.fileName || '';
+        if (fileName.toLowerCase().includes(query)) {
+          return true;
+        }
+      }
+      
+      return false;
+    }),
+    [allMessages, searchQuery]
+  );
+
+  const formatLastSeenText = useCallback((lastSeen: Date | undefined): string => {
+    return formatLastSeen(lastSeen);
+  }, []);
+
+  const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() && selectedUser) {
-      const messageId = crypto.randomUUID();
-      const message: Message = {
-        id: messageId,
-        senderId: currentUser.id,
-        recipientId: selectedUser.id,
-        createdAt: new Date().toISOString(),
-        content: newMessage.trim(),
-        chatType: "PRIVATE",
-        type: "TEXT" as Message["type"],
-      };
+    
+    const hasText = newMessage.trim();
+    const hasFiles = pendingFiles.length > 0;
+    
+    if (!hasText && !hasFiles) return;
+    if (!selectedUser || isSending) return;
 
-      console.log("Sending message for user:", currentUser.id);
+    setIsSending(true);
 
-      // Optimistically add message to UI
-      setWsMessages((prev) => [...prev, message]);
-      setNewMessage("");
+    try {
+      // Send text message if present
+      if (hasText) {
+        const messageId = generateUUID();
+        const message: Message = {
+          id: messageId,
+          senderId: currentUser.id,
+          ...(selectedUser.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" as const }
+            : { recipientId: selectedUser.id, chatType: "PRIVATE" as const }
+          ),
+          createdAt: new Date().toISOString(),
+          content: newMessage.trim(),
+          type: "TEXT" as Message["type"],
+        };
 
-      // Send via WebSocket
-      const wsMessage = {
-        senderId: currentUser.id,
-        recipientId: selectedUser.id,
-        content: newMessage.trim(),
-        chatType: "PRIVATE",
-        type: "TEXT",
-      };
+        console.log("Sending message for user:", currentUser.id);
+        console.log("Message type:", selectedUser.isGroup ? "GROUP" : "PRIVATE");
 
-      sendChatMessage(wsMessage)
-        .then(() => {
-          console.log("Message sent successfully");
+        // Optimistically add message to UI
+        setWsMessages((prev) => [...prev, message]);
+        
+        // Send via WebSocket
+        const wsMessage = {
+          senderId: currentUser.id,
+          ...(selectedUser.isGroup 
+            ? { groupId: selectedUser.id, chatType: "GROUP" }
+            : { recipientId: selectedUser.id, chatType: "PRIVATE" }
+          ),
+          content: message.content,
+          type: "TEXT",
+        };
+
+        try {
+          await sendChatMessage(wsMessage);
+          console.log("Text message sent successfully");
           // Remove the optimistic message - the real one will come via WebSocket
           setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-        })
-        .catch((error) => {
-          console.error("Failed to send message:", error);
+        } catch (error) {
+          console.error("Failed to send text message:", error);
           // Remove the optimistic message on error
           setWsMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-          // Re-add the text to input for retry
-          setNewMessage(message.content);
-        });
-    }
-  };
+          throw error; // Re-throw to be caught by outer try-catch
+        }
+      }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+      // Upload and send file messages for each pending file
+      if (hasFiles) {
+        for (const file of pendingFiles) {
+          await uploadFile(file);
+        }
+        // Clear pending files after starting uploads
+        setPendingFiles([]);
+      }
+
+      // Clear input and reset
+      setNewMessage("");
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+      
+      // Smooth scroll for sending new message
+      setTimeout(() => scrollToBottom('smooth'), 0);
+
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      // Re-add the text to input for retry if it was a text message
+      if (hasText) {
+        setNewMessage(newMessage);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  }, [newMessage, pendingFiles, selectedUser, isSending, currentUser.id, uploadFile, sendChatMessage, setWsMessages, scrollToBottom]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (isSearchVisible) {
+        setIsSearchVisible(false);
+        setSearchQuery("");
+      } else if (isMenuOpen) {
+        setIsMenuOpen(false);
+      } else if (showEmojiPicker) {
+        setShowEmojiPicker(false);
+      } else if (showAttachmentMenu) {
+        setShowAttachmentMenu(false);
+      }
+    }
+  }, [isSearchVisible, isMenuOpen, showEmojiPicker, showAttachmentMenu]);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
     }
-  };
-
-  const formatLastSeenText = (lastSeen: Date | undefined): string => {
-    return formatLastSeen(lastSeen);
-  };
+  }, [handleSendMessage]);
 
   if (!selectedUser) {
     return <ModernChatLanding />;
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-whatsapp-bg bg-whatsapp-pattern">
+    <div 
+      className={`flex-1 flex flex-col bg-gray-50 ${
+        isMobile ? 'h-full relative' : 'h-full'
+      }`}
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+    >
       {/* Chat Header */}
-      <div className="bg-green-700 text-white px-5 py-4 flex items-center justify-between border-b border-gray-200">
-        <div className="flex items-center">
-          <div className="relative mr-4">
-            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-lg">
-              {selectedUser.avatar || "👤"}
+      <div className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 ${
+        isMobile ? 'fixed top-0 left-0 right-0 z-50 px-4 py-3' : 'px-6 py-4'
+      } flex items-center justify-between`}
+      style={isMobile ? { 
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingLeft: 'max(16px, env(safe-area-inset-left))',
+        paddingRight: 'max(16px, env(safe-area-inset-right))'
+      } : {}}>
+        {!isSearchVisible ? (
+          <>
+            <div className="flex items-center">
+              {/* Back button for mobile */}
+              {isMobile && onBackPress && (
+                <button
+                  onClick={onBackPress}
+                  className="p-2 mr-2.5 rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors duration-200 text-white"
+                  title="Back to conversations"
+                  aria-label="Back to conversations"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              
+              <div className={`relative flex-shrink-0 ${isMobile ? 'mr-3' : 'mr-4'}`}>
+                <div className={`${
+                  isMobile ? 'w-10 h-10 text-base' : 'w-12 h-12 text-lg'
+                } bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center font-semibold text-white shadow-lg ring-2 ring-emerald-400 ring-opacity-50`}>
+                  {selectedUser.avatar || (selectedUser.isGroup ? "👥" : selectedUser.name.charAt(0).toUpperCase())}
+                </div>
+                {!selectedUser.isGroup && selectedUser.isOnline && (
+                  <div className={`absolute -bottom-0.5 -right-0.5 ${
+                    isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'
+                  } bg-emerald-400 border-2 border-white rounded-full shadow-md`}></div>
+                )}
+                {selectedUser.isGroup && (
+                  <div className={`absolute -bottom-0.5 -right-0.5 ${
+                    isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'
+                  } bg-emerald-500 border-2 border-white rounded-full shadow-md`}></div>
+                )}
+              </div>
+              <div className="flex flex-col justify-center">
+                <h3 className={`${
+                  isMobile ? 'text-base' : 'text-xl'
+                } font-semibold text-white leading-tight tracking-tight`}>{selectedUser.name}</h3>
+                <p className={`${
+                  isMobile ? 'text-xs' : 'text-sm'
+                } text-emerald-100 font-medium`}>
+                  {selectedUser.isGroup
+                    ? `${selectedUser.memberCount || selectedUser.participants?.length || 0} members`
+                    : selectedUser.isOnline
+                    ? "Active now"
+                    : formatLastSeenText(selectedUser.lastSeen)}
+                </p>
+              </div>
             </div>
-            {selectedUser.isOnline && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
-            )}
-          </div>
-          <div>
-            <h3 className="font-medium text-lg">{selectedUser.name}</h3>
-            <p className="text-sm text-green-100">
-              {selectedUser.isOnline
-                ? "online"
-                : formatLastSeenText(selectedUser.lastSeen)}
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
-            title="Search"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                clipRule="evenodd"
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleSearchToggle}
+                className={`${
+                  isMobile ? 'p-2' : 'p-2.5'
+                } rounded-full hover:bg-emerald-500 hover:bg-opacity-30 transition-colors duration-200 text-white flex items-center justify-center`}
+                title="Search messages"
+                aria-label="Search messages"
+              >
+                <svg className={`${isMobile ? 'w-4.5 h-4.5' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={handleMenuToggle}
+                  className={`${
+                    isMobile ? 'p-2' : 'p-2.5'
+                  } rounded-full hover:bg-emerald-500 hover:bg-opacity-30 transition-colors duration-200 text-white flex items-center justify-center`}
+                  title="More options"
+                  aria-label="More options"
+                >
+                  <svg className={`${isMobile ? 'w-4.5 h-4.5' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
+                {isMenuOpen && (
+                  <div className={`absolute right-0 mt-2 ${
+                    isMobile ? 'w-48' : 'w-52'
+                  } bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-2`}>
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
+                      Contact info
+                    </button>
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
+                      Select messages
+                    </button>
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
+                      Mute notifications
+                    </button>
+                    <hr className="my-2 border-gray-100" />
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-gray-700 hover:bg-gray-50 transition-colors`}>
+                      Clear messages
+                    </button>
+                    <button className={`w-full text-left ${
+                      isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                    } text-red-600 hover:bg-red-50 transition-colors`}>
+                      Delete chat
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="w-full flex items-center space-x-3">
+            <button
+              onClick={handleSearchToggle}
+              className={`${
+                isMobile ? 'p-1.5' : 'p-2'
+              } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white`}
+              title="Close search"
+              aria-label="Close search"
+            >
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search messages..."
+                className={`w-full bg-emerald-100 border border-emerald-200 rounded-full ${
+                  isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-base'
+                } text-gray-900 placeholder-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-transparent transition-all`}
+                autoFocus
               />
-            </svg>
-          </button>
-          <button
-            className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors"
-            title="More options"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-            </svg>
-          </button>
-        </div>
+              <svg className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+                isMobile ? 'w-3 h-3' : 'w-4 h-4'
+              } text-gray-400`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-5">
-          {/* Debug info */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="bg-blue-100 p-2 mb-2 text-xs rounded">
-              <div>API Messages: {messages.length}</div>
-              <div>Total WS Messages: {wsMessages.length}</div>
-              <div>Filtered WS Messages: {filteredWsMessages.length}</div>
-              <div>Total Displayed: {[...messages, ...filteredWsMessages].length}</div>
-              <div>Selected User: {selectedUser?.id || 'none'}</div>
-              <div>
-                Last WS Message:{" "}
-                {filteredWsMessages.length > 0
-                  ? new Date(
-                      filteredWsMessages[filteredWsMessages.length - 1]?.createdAt || ""
-                    ).toLocaleTimeString()
-                  : "none"}
-              </div>
+      <div className={`flex-1 overflow-hidden flex flex-col bg-gray-100 ${
+        isMobile ? 'mobile-messages-container' : ''
+      } ${
+        isMobile && isKeyboardOpen ? 'keyboard-open' : ''
+      }`}
+      style={isMobile ? {
+        paddingTop: 'calc(64px + env(safe-area-inset-top))',
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))'
+      } : {}}>
+        <div 
+          ref={messagesContainerRef}
+          className={`flex-1 overflow-y-auto ${
+            isMobile ? 'px-2 py-1' : 'px-4 py-2'
+          } space-y-1`} 
+          style={{ scrollBehavior: 'auto' }}
+        >
+          {searchQuery && filteredMessages.length > 0 && (
+            <div className="text-center">
+              <span className={`inline-flex items-center ${
+                isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm'
+              } rounded-full font-medium bg-emerald-100 text-emerald-800`}>
+                {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} found
+              </span>
             </div>
           )}
 
-          {messages.length === 0 && filteredWsMessages.length === 0 ? (
+          {filteredMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-whatsapp-gray italic">
-                No messages yet. Start the conversation!
-              </p>
+              <div className="text-center">
+                <div className={`${
+                  isMobile ? 'w-12 h-12' : 'w-16 h-16'
+                } bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4`}>
+                  <svg className={`${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  } text-gray-400`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <p className={`text-gray-500 ${
+                  isMobile ? 'text-lg' : 'text-xl'
+                } font-medium`}>
+                  {searchQuery ? `No messages found for "${searchQuery}"` : "No messages yet"}
+                </p>
+                {!searchQuery && (
+                  <p className={`text-gray-400 ${
+                    isMobile ? 'text-sm' : 'text-base'
+                  } mt-2`}>
+                    Start the conversation with a friendly message!
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              {[...messages, ...filteredWsMessages]
-                .sort(
-                  (a, b) =>
-                    new Date(a.createdAt || "").getTime() -
-                    new Date(b.createdAt || "").getTime()
-                )
-                .map((message, index, arr) => {
-                  const isCurrentUser = message.senderId === currentUser.id;
-                  const previousMessage =
-                    index > 0 ? arr[index - 1] : undefined;
+            <div className="space-y-1">
+              {/* Show uploading files */}
+              {Array.from(uploadingFiles.entries()).map(([uploadId, uploadInfo]) => (
+                <FileUploadProgress
+                  key={uploadId}
+                  file={uploadInfo.file}
+                  progress={uploadInfo.progress}
+                  isUploading={uploadInfo.isUploading}
+                  isSuccess={uploadInfo.isSuccess}
+                  error={uploadInfo.error}
+                  onCancel={() => cancelUpload(uploadId)}
+                  onRetry={() => retryUpload(uploadId)}
+                  isMobile={isMobile}
+                />
+              ))}
+              
+              {/* Render messages */}
+              {filteredMessages.map((message, index, arr) => {
+                const isCurrentUser = message.senderId === currentUser.id;
+                const previousMessage = index > 0 ? arr[index - 1] : undefined;
 
-                  return (
-                    <MessageItem
-                      key={message.id || index}
-                      message={message}
-                      isCurrentUser={isCurrentUser}
-                      showAvatar={
-                        index === 0 ||
-                        arr[index - 1].senderId !== message.senderId
-                      }
-                      user={isCurrentUser ? currentUser : selectedUser}
-                      previousMessage={previousMessage}
-                    />
-                  );
-                })}
+                return (
+                  <MessageItem
+                    key={message.id || `${message.senderId}-${index}`}
+                    message={message}
+                    isCurrentUser={isCurrentUser}
+                    showAvatar={true}
+                    user={isCurrentUser ? currentUser : selectedUser}
+                    previousMessage={previousMessage}
+                    isGroupChat={selectedUser.isGroup}
+                    isMobile={isMobile}
+                    currentUserId={currentUser.id}
+                  />
+                );
+              })}
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -212,55 +862,132 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Message Input */}
-      <div className="bg-whatsapp-gray-light px-5 py-3 border-t border-gray-200">
-        <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
-          <button
-            type="button"
-            className="p-2 text-whatsapp-gray hover:text-whatsapp-gray-dark transition-colors"
-            title="Attach file"
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </button>
-
-          <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
-            <textarea
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type a message"
-              className="flex-1 border-none outline-none resize-none text-base leading-6 max-h-24"
-              rows={1}
-            />
+      <div className={`bg-white border-t border-gray-200 ${
+        isMobile 
+          ? 'fixed bottom-0 left-0 right-0 z-40 mobile-input-container'
+          : ''
+      } flex-shrink-0`}
+      style={isMobile ? {
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(12px, env(safe-area-inset-left))',
+        paddingRight: 'max(12px, env(safe-area-inset-right))'
+      } : {}}>
+        {/* Pending Files Preview */}
+        <PendingFilesPreview
+          files={pendingFiles}
+          onRemoveFile={removePendingFile}
+          isMobile={isMobile}
+        />
+        
+        <div className={`${isMobile ? 'px-3 py-2' : 'px-6 py-4'}`}>
+        <form onSubmit={handleSendMessage} className={`flex items-center ${
+          isMobile ? 'space-x-1' : 'space-x-3'
+        }`}>
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="*/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <div className="relative  flex-shrink-0" ref={attachmentMenuRef}>
             <button
               type="button"
-              className="ml-2 p-1 text-whatsapp-gray hover:text-whatsapp-gray-dark"
-              title="Add emoji"
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              className={`${
+                isMobile ? 'p-1.5' : 'p-3'
+              } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100 flex items-center justify-center`}
+              title="Attach file"
+              aria-label="Attach file"
             >
-              😊
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
             </button>
+            
+            <FileAttachmentMenu
+              isVisible={showAttachmentMenu}
+              onClose={() => setShowAttachmentMenu(false)}
+              onSelectImage={() => handleAttachmentAction('image')}
+              onSelectDocument={() => handleAttachmentAction('document')}
+              onSelectCamera={() => handleAttachmentAction('camera')}
+            />
+          </div>
+
+          <div className={`flex-1 bg-gray-100 ${
+            isMobile ? 'rounded-xl' : 'rounded-3xl'
+          } border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200`}>
+            <div className={`flex items-center ${
+              isMobile ? 'px-2 py-1' : 'px-4 py-2'
+            }`}>
+              <textarea
+                ref={textareaRef}
+                value={newMessage}
+                onChange={handleMessageChange}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a message..."
+                className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent ${
+                  isMobile ? 'text-sm leading-5 py-1' : 'text-base leading-6 py-1'
+                } ${
+                  isMobile 
+                    ? isKeyboardOpen 
+                      ? 'max-h-16' 
+                      : 'max-h-24'
+                    : 'max-h-32'
+                }`}
+                rows={1}
+                disabled={isSending}
+              />
+              <div className="flex-shrink-0" ref={emojiPickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className={`${isMobile ? 'p-1.5' : 'p-2'} text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center`}
+                  title="Add emoji"
+                  aria-label="Add emoji"
+                >
+                  <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                <EmojiPicker
+                  isVisible={showEmojiPicker}
+                  onEmojiSelect={handleEmojiSelect}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              </div>
+            </div>
           </div>
 
           <button
             type="submit"
-            disabled={!newMessage.trim()}
-            className={`p-3 rounded-full transition-colors ${
-              newMessage.trim()
-                ? "bg-green-700 hover:bg-green-700-dark text-white"
+            disabled={(!newMessage.trim() && pendingFiles.length === 0) || isSending}
+            className={`flex-shrink-0 flex items-center justify-center ${
+              isMobile ? 'w-8 h-8' : 'w-12 h-12'
+            } rounded-full transition-all duration-200 ${
+              (newMessage.trim() || pendingFiles.length > 0) && !isSending
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
-            title="Send message"
+            title={isSending ? "Sending..." : pendingFiles.length > 0 ? `Send ${pendingFiles.length} file${pendingFiles.length !== 1 ? 's' : ''}` : "Send message"}
+            aria-label={isSending ? "Sending message" : pendingFiles.length > 0 ? `Send ${pendingFiles.length} file${pendingFiles.length !== 1 ? 's' : ''}` : "Send message"}
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
+            {isSending ? (
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-spin`} fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            )}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

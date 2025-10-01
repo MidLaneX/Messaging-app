@@ -1,4 +1,79 @@
 import { User, Message } from '../types';
+import { APP_CONFIG } from '../constants';
+
+// Enhanced API client with timeout and retry logic
+class ApiClient {
+  private baseURL: string;
+  private timeout: number;
+  private retryAttempts: number;
+
+  constructor() {
+    this.baseURL = APP_CONFIG.API_BASE_URL;
+    this.timeout = APP_CONFIG.REQUEST_TIMEOUT;
+    this.retryAttempts = APP_CONFIG.RETRY_ATTEMPTS;
+  }
+
+  async request<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    const requestOptions: RequestInit = {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    };
+
+    for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
+      try {
+        const response = await fetch(`${this.baseURL}${url}`, requestOptions);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        if (attempt === this.retryAttempts) {
+          throw error;
+        }
+        
+        // Exponential backoff
+        const delay = APP_CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw new Error('Max retry attempts reached');
+  }
+
+  async get<T>(url: string): Promise<T> {
+    return this.request<T>(url, { method: 'GET' });
+  }
+
+  async post<T>(url: string, data?: any): Promise<T> {
+    return this.request<T>(url, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(url: string, data?: any): Promise<T> {
+    return this.request<T>(url, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(url: string): Promise<T> {
+    return this.request<T>(url, { method: 'DELETE' });
+  }
+}
+
+export const apiClient = new ApiClient();
 
 export interface MessageService {
   sendMessage(content: string, senderId: string, receiverId: string): Promise<Message>;

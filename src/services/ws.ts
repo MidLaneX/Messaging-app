@@ -1,22 +1,31 @@
 import SockJS from 'sockjs-client';
 import { CompatClient, Stomp } from '@stomp/stompjs';
+import { APP_CONFIG } from '../constants';
+import { getFileCategory, getFileIcon } from '../utils/fileConfig';
 
 export interface ChatMessage {
   senderId: string;
   recipientId?: string;
+  groupId?: string;
   content: string;
   chatId?: string;
   chatType?: string;
   type?: string;
+  fileId?: string; // File ID for backend file linking
+  fileAttachment?: any; // Support for file attachments (legacy/optional)
   // add other fields as needed
 }
 
 let stompClient: CompatClient | null = null;
-let currentSubscription: any = null;
+let currentSubscription: any = null; // Keep for private messages
+let activeSubscriptions = new Map<string, any>(); // For managing multiple subscriptions
+let statusSubscription: any = null;
 let subscriptionCounter = 0;
 let isConnecting = false;
 let currentUserId: string | null = null;
 let connectionPromise: Promise<void> | null = null;
+let messageQueue: ChatMessage[] = []; // Queue messages while connecting
+let heartbeatInterval: NodeJS.Timeout | null = null;
 
 export function connectWebSocket(
   userId: string,
@@ -48,11 +57,11 @@ export function connectWebSocket(
     currentUserId = userId;
 
     console.log(
-      `🔌 Connecting WebSocket for user: ${userId} to backend at localhost:8090`
+      `🔌 Connecting WebSocket for user: ${userId} to backend at ${APP_CONFIG.API_BASE_URL}`
     );
 
     // Create socket with factory function for proper reconnection support
-    const socketFactory = () => new SockJS("http://localhost:8090/ws");
+    const socketFactory = () => new SockJS(`${APP_CONFIG.API_BASE_URL}/ws`);
     stompClient = Stomp.over(socketFactory);
 
     // Configure STOMP client - disable debug in production
@@ -198,6 +207,67 @@ export function waitForConnection(timeout: number = 5000): Promise<void> {
   });
 }
 
+export function subscribeToStatusUpdates(onStatusUpdate: (status: any) => void): Promise<any> {
+  return waitForConnection(15000)
+    .then(() => {
+      if (!stompClient || !stompClient.connected) {
+        throw new Error("STOMP client not connected for status subscription");
+      }
+
+      // Unsubscribe from previous status subscription if it exists
+      if (statusSubscription) {
+        console.log("🔄 Unsubscribing from previous status subscription");
+        try {
+          statusSubscription.unsubscribe();
+        } catch (error) {
+          console.warn("⚠️ Error unsubscribing from status:", error);
+        }
+        statusSubscription = null;
+      }
+
+      const destination = "/topic/status";
+      console.log(`🔔 Subscribing to status updates: ${destination}`);
+
+      subscriptionCounter++;
+      const subscriptionId = `status-sub-${Date.now()}-${subscriptionCounter}`;
+
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            statusSubscription = stompClient!.subscribe(
+              destination,
+              (message: { body: string }) => {
+                console.log(`📡 Status update received:`, message.body);
+                try {
+                  const statusUpdate = JSON.parse(message.body);
+                  console.log(`📡 Parsed status update:`, statusUpdate);
+                  onStatusUpdate(statusUpdate);
+                } catch (error) {
+                  console.error("❌ Error parsing status update:", error, message.body);
+                }
+              },
+              { id: subscriptionId }
+            );
+
+            if (statusSubscription) {
+              console.log(`✅ Status subscription created with ID: ${subscriptionId}`);
+              resolve(statusSubscription);
+            } else {
+              reject(new Error("Failed to create status subscription"));
+            }
+          } catch (error) {
+            console.error("❌ Error creating status subscription:", error);
+            reject(error);
+          }
+        }, 500);
+      });
+    })
+    .catch((error) => {
+      console.error("❌ Error creating status subscription:", error);
+      throw error;
+    });
+}
+
 export function subscribeToChat(
   chatId: string,
   onMessage: (msg: any) => void,
@@ -207,7 +277,11 @@ export function subscribeToChat(
     "🔄 subscribeToChat called, stompClient connected:",
     stompClient?.connected,
     "currentUserId:",
-    currentUserId
+    currentUserId,
+    "isGroup:",
+    isGroup,
+    "chatId:",
+    chatId
   );
 
   return waitForConnection(15000) // Increase timeout to 15 seconds
@@ -216,20 +290,31 @@ export function subscribeToChat(
         throw new Error("STOMP client not connected after waiting");
       }
 
-      // Unsubscribe from previous subscription if it exists
-      if (currentSubscription) {
-        console.log("🔄 Unsubscribing from previous subscription");
-        try {
-          currentSubscription.unsubscribe();
-        } catch (error) {
-          console.warn("⚠️ Error unsubscribing:", error);
-        }
-        currentSubscription = null;
-      }
-
       const destination = isGroup
         ? `/topic/chat/${chatId}`
         : `/topic/private/${currentUserId}`; // switched to topic-based private channel
+
+      // Check if we already have a subscription for this destination
+      if (activeSubscriptions.has(destination)) {
+        console.log(`🔄 Already subscribed to: ${destination}`);
+        return activeSubscriptions.get(destination);
+      }
+
+      // For private messages, also handle the legacy currentSubscription
+      if (!isGroup) {
+        // Unsubscribe from previous private subscription if it exists
+        if (currentSubscription) {
+          console.log("🔄 Unsubscribing from previous private subscription");
+          try {
+            currentSubscription.unsubscribe();
+            const oldDest = `/topic/private/${currentUserId}`;
+            activeSubscriptions.delete(oldDest);
+          } catch (error) {
+            console.warn("⚠️ Error unsubscribing:", error);
+          }
+          currentSubscription = null;
+        }
+      }
 
       console.log(
         `🔔 Subscribing to: ${destination} for user: ${currentUserId}`
@@ -260,7 +345,7 @@ export function subscribeToChat(
           try {
             console.log(`🔔 Attempting to subscribe to: ${destination}`);
 
-            currentSubscription = stompClient!.subscribe(
+            const subscription = stompClient!.subscribe(
               destination,
               (message: { body: string }) => {
                 console.log(
@@ -283,10 +368,31 @@ export function subscribeToChat(
                     `📨 [${subscriptionId}] Parsed message:`,
                     parsedMessage
                   );
+                  
+                  // Convert legacy file fields to fileAttachment if needed
+                  if (parsedMessage.type === 'FILE' && parsedMessage.fileUrl && !parsedMessage.fileAttachment) {
+                    console.log(`🔍 [${subscriptionId}] Processing FILE message - fileId from backend:`, parsedMessage.fileId, 'Type:', typeof parsedMessage.fileId);
+                    parsedMessage.fileAttachment = {
+                      fileId: parsedMessage.fileId || null, // Use fileId from backend
+                      originalName: parsedMessage.fileName || 'Unknown File',
+                      fileName: parsedMessage.fileName || 'Unknown File',
+                      fileSize: parsedMessage.fileSize || 0,
+                      mimeType: parsedMessage.fileType || 'application/octet-stream',
+                      fileUrl: parsedMessage.fileUrl,
+                      uploadedAt: parsedMessage.createdAt || new Date().toISOString(),
+                      uploadedBy: parsedMessage.senderId,
+                      category: getFileCategory(parsedMessage.fileType || ''),
+                      icon: getFileIcon(parsedMessage.fileType || ''),
+                    };
+                    console.log(`📎 [${subscriptionId}] Converted file fields to fileAttachment with fileId:`, parsedMessage.fileAttachment);
+                    console.log(`📎 [${subscriptionId}] Full parsedMessage after conversion:`, JSON.stringify(parsedMessage, null, 2));
+                  }
+                  
                   console.log(`📨 [${subscriptionId}] Message details:`, {
                     id: parsedMessage.id,
                     senderId: parsedMessage.senderId,
                     recipientId: parsedMessage.recipientId,
+                    groupId: parsedMessage.groupId,
                     content: parsedMessage.content,
                     chatType: parsedMessage.chatType,
                     createdAt: parsedMessage.createdAt,
@@ -305,14 +411,23 @@ export function subscribeToChat(
               { id: subscriptionId }
             );
 
-            if (currentSubscription) {
+            // Store the subscription
+            activeSubscriptions.set(destination, subscription);
+            
+            // For private messages, also set the legacy currentSubscription
+            if (!isGroup) {
+              currentSubscription = subscription;
+            }
+
+            if (subscription) {
               console.log(
                 `✅ Subscription created with ID: ${
-                  currentSubscription.id || subscriptionId
+                  subscription.id || subscriptionId
                 }`
               );
               console.log(`✅ Successfully subscribed to: ${destination}`);
-              resolve(currentSubscription);
+              console.log(`🗺️ Active subscriptions: ${Array.from(activeSubscriptions.keys()).join(', ')}`);
+              resolve(subscription);
             } else {
               reject(new Error("Failed to create subscription"));
             }
@@ -332,7 +447,19 @@ export function subscribeToChat(
 export function disconnectWebSocket() {
   console.log("🔌 Disconnecting WebSocket...");
 
-  // Unsubscribe from current subscription
+  // Unsubscribe from all active subscriptions
+  console.log(`🔄 Unsubscribing from ${activeSubscriptions.size} active subscriptions`);
+  activeSubscriptions.forEach((subscription, destination) => {
+    console.log(`🔄 Unsubscribing from: ${destination}`);
+    try {
+      subscription.unsubscribe();
+    } catch (error) {
+      console.warn(`⚠️ Error unsubscribing from ${destination}:`, error);
+    }
+  });
+  activeSubscriptions.clear();
+
+  // Unsubscribe from current subscription (legacy)
   if (currentSubscription) {
     console.log("🔄 Unsubscribing from current subscription");
     try {
@@ -341,6 +468,17 @@ export function disconnectWebSocket() {
       console.warn("⚠️ Error during unsubscribe:", error);
     }
     currentSubscription = null;
+  }
+
+  // Unsubscribe from status subscription
+  if (statusSubscription) {
+    console.log("🔄 Unsubscribing from status subscription");
+    try {
+      statusSubscription.unsubscribe();
+    } catch (error) {
+      console.warn("⚠️ Error during status unsubscribe:", error);
+    }
+    statusSubscription = null;
   }
 
   // Disconnect STOMP client
@@ -375,11 +513,35 @@ export function disconnectWebSocket() {
   connectionPromise = null;
 }
 
+// Function to unsubscribe from a specific destination
+export function unsubscribeFromDestination(destination: string) {
+  const subscription = activeSubscriptions.get(destination);
+  if (subscription) {
+    console.log(`🔄 Unsubscribing from specific destination: ${destination}`);
+    try {
+      subscription.unsubscribe();
+      activeSubscriptions.delete(destination);
+      console.log(`✅ Successfully unsubscribed from: ${destination}`);
+      
+      // If this was the private subscription, also clear currentSubscription
+      if (destination === `/topic/private/${currentUserId}`) {
+        currentSubscription = null;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error unsubscribing from ${destination}:`, error);
+    }
+  } else {
+    console.log(`ℹ️ No active subscription found for: ${destination}`);
+  }
+}
+
 // Debug function to check connection status
 export function getConnectionStatus() {
   return {
     connected: stompClient?.connected || false,
     hasSubscription: currentSubscription !== null,
+    activeSubscriptionsCount: activeSubscriptions.size,
+    activeDestinations: Array.from(activeSubscriptions.keys()),
     clientExists: stompClient !== null,
     currentUserId,
     isConnecting,

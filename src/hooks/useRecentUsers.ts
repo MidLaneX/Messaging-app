@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { recentUsersService, RecentUser } from '../services/recentUsersService';
+import { recentUsersService, RecentUser, fetchLastMessageForUser } from '../services/recentUsersService';
 import { APP_CONFIG } from '../constants';
 
 interface UseRecentUsersReturn {
@@ -27,8 +27,25 @@ export const useRecentUsers = (): UseRecentUsersReturn => {
       
       const response = await recentUsersService.getInitialRecentUsers(APP_CONFIG.CURRENT_USER_ID);
       
+      let users = response?.users || [];
+      
+      // If users don't have last messages, try to fetch them
+      if (users.length > 0 && users.some(user => !user.lastMessage)) {
+        console.log('Fetching last messages for users without them...');
+        const usersWithMessages = await Promise.all(
+          users.map(async (user) => {
+            if (!user.lastMessage) {
+              const lastMessage = await fetchLastMessageForUser(APP_CONFIG.CURRENT_USER_ID, user.id);
+              return { ...user, lastMessage };
+            }
+            return user;
+          })
+        );
+        users = usersWithMessages;
+      }
+      
       // Ensure we always have an array
-      setRecentUsers(response?.users || []);
+      setRecentUsers(users);
       setHasMore(response?.hasMore || false);
       setCurrentPage(response?.currentPage || 1);
     } catch (err) {

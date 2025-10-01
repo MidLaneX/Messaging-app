@@ -31,7 +31,7 @@ export const MainContent: React.FC<LayoutProps> = ({ children, className = '' })
 
 export const Header: React.FC<LayoutProps> = ({ children, className = '' }) => {
   return (
-    <div className={`bg-whatsapp-green text-white px-5 py-4 flex items-center justify-between border-b border-gray-200 ${className}`}>
+    <div className={`bg-emerald-600 text-white px-5 py-4 flex items-center justify-between border-b border-gray-200 ${className}`}>
       {children}
     </div>
   );
@@ -47,7 +47,7 @@ export const Content: React.FC<LayoutProps> = ({ children, className = '' }) => 
 
 export const Footer: React.FC<LayoutProps> = ({ children, className = '' }) => {
   return (
-    <div className={`bg-whatsapp-gray-light px-5 py-3 border-t border-gray-200 ${className}`}>
+    <div className={`bg-gray-100 px-5 py-3 border-t border-gray-200 ${className}`}>
       {children}
     </div>
   );

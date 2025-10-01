@@ -14,6 +14,22 @@ export interface ApiUser {
   online: boolean;
 }
 
+// API Conversation structure from backend
+export interface ApiConversation {
+  id: string;
+  user: ApiUser;
+  lastMessage?: {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    content: string;
+    type: string;
+    chatType: string;
+    createdAt: string;
+  };
+  unreadCount: number;
+}
+
 // Spring Boot Page response structure
 export interface SpringPageResponse<T> {
   content: T[];
@@ -110,21 +126,64 @@ class RecentUsersService {
     };
   }
 
+  // Convert API conversation to our RecentUser format
+  private convertApiConversationToRecentUser(apiConversation: ApiConversation): RecentUser {
+    const user = apiConversation.user;
+    return {
+      id: user.id,
+      name: user.displayName || user.username,
+      avatar: "👤", // Default avatar since API doesn't provide one
+      lastSeen: new Date(user.lastSeen),
+      isOnline: user.online,
+      lastMessage: apiConversation.lastMessage ? {
+        id: apiConversation.lastMessage.id,
+        senderId: apiConversation.lastMessage.senderId,
+        recipientId: apiConversation.lastMessage.recipientId,
+        content: apiConversation.lastMessage.content,
+        type: apiConversation.lastMessage.type as any,
+        chatType: apiConversation.lastMessage.chatType as any,
+        createdAt: apiConversation.lastMessage.createdAt,
+      } : undefined,
+      unreadCount: apiConversation.unreadCount,
+    };
+  }
+
   async getInitialRecentUsers(userId: string): Promise<RecentUsersResponse> {
     try {
-      const response: AxiosResponse<SpringPageResponse<ApiUser>> = await this.axiosInstance.get(
-        API_ENDPOINTS.RECENT_USERS_INITIAL(userId)
-      );
+      // Try to fetch conversations first (with last messages)
+      try {
+        const conversationResponse: AxiosResponse<ApiConversation[]> = await this.axiosInstance.get(
+          API_ENDPOINTS.RECENT_CONVERSATIONS(userId)
+        );
 
-      const pageData = response.data;
-      const recentUsers = pageData.content.map(apiUser => this.convertApiUserToRecentUser(apiUser));
+        const recentUsers = conversationResponse.data.map(conversation => 
+          this.convertApiConversationToRecentUser(conversation)
+        );
 
-      return {
-        users: recentUsers,
-        hasMore: !pageData.last,
-        currentPage: pageData.number,
-        totalPages: pageData.totalPages,
-      };
+        return {
+          users: recentUsers,
+          hasMore: false, // Conversations endpoint doesn't support pagination yet
+          currentPage: 1,
+          totalPages: 1,
+        };
+      } catch (conversationError) {
+        console.warn('Conversations endpoint not available, falling back to users endpoint:', conversationError);
+        
+        // Fallback to the original users endpoint
+        const response: AxiosResponse<SpringPageResponse<ApiUser>> = await this.axiosInstance.get(
+          API_ENDPOINTS.RECENT_USERS_INITIAL(userId)
+        );
+
+        const pageData = response.data;
+        const recentUsers = pageData.content.map(apiUser => this.convertApiUserToRecentUser(apiUser));
+
+        return {
+          users: recentUsers,
+          hasMore: !pageData.last,
+          currentPage: pageData.number,
+          totalPages: pageData.totalPages,
+        };
+      }
     } catch (error) {
       console.error('Error fetching initial recent users:', error);
       // Return empty result as fallback
@@ -259,3 +318,41 @@ class RecentUsersService {
 }
 
 export const recentUsersService = new RecentUsersService();
+
+// Helper function to fetch last message for a user pair
+export async function fetchLastMessageForUser(currentUserId: string, otherUserId: string): Promise<Message | undefined> {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get(
+      `${APP_CONFIG.API_BASE_URL}/api/users/${currentUserId}/chats/${otherUserId}?page=0&size=1`
+    );
+    
+    const messages = response.data.content;
+    if (messages && messages.length > 0) {
+      return messages[0]; // Return the most recent message
+    }
+    return undefined;
+  } catch (error) {
+    console.warn(`Failed to fetch last message for user ${otherUserId}:`, error);
+    return undefined;
+  }
+}
+
+// Helper function to fetch last message for a group
+export async function fetchLastMessageForGroup(groupId: string): Promise<Message | undefined> {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get(
+      `${APP_CONFIG.API_BASE_URL}/api/chat/group/${groupId}?page=0&size=1`
+    );
+    
+    const messages = response.data.content;
+    if (messages && messages.length > 0) {
+      return messages[0]; // Return the most recent message
+    }
+    return undefined;
+  } catch (error) {
+    console.warn(`Failed to fetch last message for group ${groupId}:`, error);
+    return undefined;
+  }
+}
