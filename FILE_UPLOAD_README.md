@@ -1,7 +1,6 @@
-# File Upload Implementation Summary
+# File Upload Implementation Summary - Backend Architecture
 
-## Current File Upload Workflow
-
+## New File Upload Workflow (Backend-Driven)
 ### User Experience
 1. **File Selection**: Click attachment button → Select file from menu → Choose file
 2. **File Preview**: Selected files appear as preview cards above the input area
@@ -9,22 +8,37 @@
 4. **Sending**: Press Send button to upload all pending files and send text message
 5. **Upload Progress**: Each file shows upload progress in the chat area
 6. **Message Display**: Completed files appear as file attachment messages
-7. **File Interaction**: Click to download, view images directly in chat
+7. **File Interaction**: Click to download or view files through secure backend endpoints
 
 ### Technical Implementation
+#### Architecture Overview
+- **Secure Backend**: All file operations (upload, download, view) handled by Spring Boot backend
+- **R2 Integration**: Backend manages Cloudflare R2 storage with proper authentication
+- **Access Control**: File access controlled by backend with user permissions
+- **Database Tracking**: File metadata stored in PostgreSQL with proper relationships
 
 #### Components
-- **ChatWindow.tsx**: Main chat interface with file upload integration
-- **PendingFilesPreview.tsx**: Shows selected files before upload
-- **FileUploadProgress.tsx**: Shows upload progress for each file
-- **FileAttachment.tsx**: Displays completed file attachments in messages
+- **ChatWindow.tsx**: Main chat interface with simplified file upload
+- **FileAttachment.tsx**: Displays files with backend download/view URLs
+- **backendFileService.ts**: Frontend service that calls backend APIs
+- **FileController.java**: REST endpoints for file operations
+- **FileService.java**: Business logic for file handling
 
-#### Upload Services
-- **backendUpload.ts**: Backend proxy upload (production-ready)
-- **browserFileUpload.ts**: Direct browser upload with local storage fallback
-- **localFileStorage.ts**: Local storage service for testing file sharing
+#### Backend Endpoints
+- `POST /api/files/upload` - Upload file with progress tracking
+- `GET /api/files/download/{fileId}` - Download file with access control
+- `GET /api/files/view/{fileId}` - View file inline (images, PDFs)
+- `GET /api/files/metadata/{fileId}` - Get file metadata
+- `DELETE /api/files/{fileId}` - Delete file (owner only)
+- `GET /api/files/accessible` - List files accessible by user
 
-#### Download Services
+### Benefits of New Architecture
+✅ **Security**: All file operations secured by backend authentication
+✅ **Scalability**: Centralized file handling in backend
+✅ **Access Control**: Proper user permissions on file operations
+✅ **Data Integrity**: File metadata tracked in database
+✅ **Clean Frontend**: No R2 credentials or direct cloud operations in frontend
+✅ **Cross-Platform**: Works consistently across all browsers/devices
 - **fileDownload.ts**: Handle file downloads and previews
 - Supports both cloud storage and local storage URLs
 

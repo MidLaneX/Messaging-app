@@ -1,42 +1,7 @@
 /**
- * Configuration utilities for secure credential management
+ * File utilities for frontend file handling
+ * Note: File operations (upload/download) are handled by backend API
  */
-
-export interface R2Config {
-  endpoint: string;
-  accessKey: string;
-  secretKey: string;
-  bucketName: string;
-  region: string;
-}
-
-/**
- * Get R2 configuration from environment variables
- * Throws error if required credentials are missing
- */
-export const getR2Config = (): R2Config => {
-  const config = {
-    endpoint: process.env.REACT_APP_R2_ENDPOINT,
-    accessKey: process.env.REACT_APP_R2_ACCESS_KEY,
-    secretKey: process.env.REACT_APP_R2_SECRET_KEY,
-    bucketName: process.env.REACT_APP_R2_BUCKET_NAME,
-    region: process.env.REACT_APP_R2_REGION,
-  };
-
-  // Validate that all required config values are present
-  const missingKeys = Object.entries(config)
-    .filter(([_, value]) => !value)
-    .map(([key, _]) => key);
-
-  if (missingKeys.length > 0) {
-    throw new Error(
-      `Missing required R2 configuration: ${missingKeys.join(', ')}. ` +
-      'Please check your environment variables.'
-    );
-  }
-
-  return config as R2Config;
-};
 
 /**
  * Validate file for upload

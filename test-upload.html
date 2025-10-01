@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test File Upload</title>
+</head>
+<body>
+    <h1>Test Backend File Upload</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" required />
+        <input type="text" id="userIdInput" placeholder="User ID" value="a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" />
+        <button type="submit">Upload</button>
+    </form>
+    
+    <div id="result"></div>
+    <div id="logs"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8090';
+        
+        function log(message) {
+            const logs = document.getElementById('logs');
+            logs.innerHTML += '<div>' + new Date().toISOString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const userIdInput = document.getElementById('userIdInput');
+            const file = fileInput.files[0];
+            const userId = userIdInput.value;
+            
+            if (!file) {
+                log('Please select a file');
+                return;
+            }
+            
+            log('Starting upload...');
+            log('File: ' + file.name + ' (' + file.size + ' bytes)');
+            log('User ID: ' + userId);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('userId', userId);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                log('Response status: ' + response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('Upload successful!');
+                    document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                } else {
+                    const errorText = await response.text();
+                    log('Upload failed: ' + errorText);
+                    document.getElementById('result').innerHTML = 'Error: ' + errorText;
+                }
+            } catch (error) {
+                log('Network error: ' + error.message);
+                document.getElementById('result').innerHTML = 'Network error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

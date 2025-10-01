@@ -16,9 +16,14 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { User, Message } from "../types";
 import { formatLastSeen, generateUUID } from "../utils";
 import { getFileCategory, getFileIcon, validateFile } from "../utils/fileConfig";
-import { browserFileUploadService, UploadProgress } from "../services/browserFileUpload";
-import { backendUploadService } from "../services/backendUpload";
+import { backendFileService } from "../services/backendFileService";
 import MessageItem from "./MessageItem";
+
+interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+}
 import ModernChatLanding from "./UI/ModernChatLanding";
 import EmojiPicker from "./UI/EmojiPicker";
 import FileAttachmentMenu from "./UI/FileAttachmentMenu";
@@ -212,99 +217,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     })));
 
     try {
-      // Try backend upload service first (production-ready)
-      let result;
-      
-      try {
-        console.log('Attempting backend upload...');
-        result = await backendUploadService.uploadFile(
-          file,
-          (progress: number) => {
-            setUploadingFiles(prev => {
-              const newMap = new Map(prev);
-              const existing = newMap.get(uploadId);
-              if (existing) {
-                const progressData: UploadProgress = {
-                  loaded: Math.round((progress / 100) * file.size),
-                  total: file.size,
-                  percentage: progress
-                };
-                newMap.set(uploadId, { ...existing, progress: progressData });
-              }
-              return newMap;
-            });
-          }
-        );
-        
-        if (result.success && result.file) {
-          console.log('Backend upload successful:', result.file);
-          
-          // Mark upload as complete
-          setUploadingFiles(prev => {
-            const newMap = new Map(prev);
-            const existing = newMap.get(uploadId);
-            if (existing) {
-              newMap.set(uploadId, { 
-                ...existing, 
-                isUploading: false, 
-                isSuccess: true,
-                progress: { loaded: file.size, total: file.size, percentage: 100 }
-              });
-            }
-            return newMap;
-          });
-
-          // Create file message
-          const fileMessage: Message = {
-            id: generateUUID(),
-            senderId: currentUser.id,
-            ...(selectedUser?.isGroup 
-              ? { groupId: selectedUser.id, chatType: "GROUP" as const }
-              : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" as const }
-            ),
-            createdAt: new Date().toISOString(),
-            content: '', // Optional caption - can be added later
-            type: "FILE" as const,
-            fileAttachment: {
-              originalName: file.name,
-              fileName: result.file.name,
-              fileSize: result.file.size,
-              mimeType: result.file.type,
-              fileUrl: result.file.url,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: currentUser.id,
-              category: getFileCategory(file.type),
-              icon: getFileIcon(file.type),
-            },
-          };
-
-          // Send via WebSocket
-          const wsMessage = {
-            senderId: currentUser.id,
-            ...(selectedUser?.isGroup 
-              ? { groupId: selectedUser.id, chatType: "GROUP" }
-              : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" }
-            ),
-            content: fileMessage.content,
-            type: "FILE",
-            fileAttachment: fileMessage.fileAttachment,
-          };
-          
-          await sendChatMessage(wsMessage);
-          
-          // Add to local state
-          setWsMessages(prev => [...prev, fileMessage]);
-          
-          console.log('File message sent:', fileMessage);
-          return; // Exit successfully
-        }
-      } catch (backendError) {
-        console.warn('Backend upload failed, falling back to browser upload:', backendError);
-      }
-      
-      // Fallback to browser upload service
-      console.log('Attempting browser upload...');
-      const browserResult = await browserFileUploadService.uploadFile(
+      console.log('Attempting backend file upload...');
+      const result = await backendFileService.uploadFile(
         file,
         currentUser.id,
         (progress: UploadProgress) => {
@@ -318,8 +232,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           });
         }
       );
-
-      if (browserResult.success && browserResult.fileUrl) {
+      
+      if (result.success && result.fileUrl && result.fileId) {
+        console.log('Backend file upload successful:', result);
+        
         // Mark upload as complete
         setUploadingFiles(prev => {
           const newMap = new Map(prev);
@@ -348,19 +264,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           type: "FILE" as const,
           fileAttachment: {
             originalName: file.name,
-            fileName: browserResult.fileName || '',
-            fileSize: browserResult.fileSize || file.size,
-            mimeType: browserResult.mimeType || file.type,
-            fileUrl: browserResult.fileUrl,
+            fileName: result.fileName || file.name,
+            fileSize: result.fileSize || file.size,
+            mimeType: result.mimeType || file.type,
+            fileUrl: result.fileUrl,
             uploadedAt: new Date().toISOString(),
             uploadedBy: currentUser.id,
             category: getFileCategory(file.type),
             icon: getFileIcon(file.type),
-          }
+            fileId: result.fileId, // Store file ID for backend operations
+          },
         };
-
-        // Add file message to chat
-        setWsMessages((prev) => [...prev, fileMessage]);
 
         // Send via WebSocket
         const wsMessage = {
@@ -371,42 +285,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           ),
           content: fileMessage.content,
           type: "FILE",
-          fileAttachment: fileMessage.fileAttachment,
+          fileId: result.fileId, // Send file ID instead of fileAttachment object
         };
+        
+        await sendChatMessage(wsMessage);
+        
+        // Add to local state
+        setWsMessages(prev => [...prev, fileMessage]);
+        
+        console.log('File message sent:', fileMessage);
 
-        try {
-          await sendChatMessage(wsMessage);
-          console.log("File message sent successfully");
-          
-          // Remove from uploading files after a delay
-          setTimeout(() => {
-            setUploadingFiles(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(uploadId);
-              return newMap;
-            });
-          }, 2000);
-        } catch (error) {
-          console.error("Failed to send file message:", error);
-          // Remove the optimistic message on error
-          setWsMessages((prev) => prev.filter((msg) => msg.id !== fileMessage.id));
-        }
+        // Remove from uploading files after a delay
+        setTimeout(() => {
+          setUploadingFiles(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(uploadId);
+            return newMap;
+          });
+        }, 2000);
 
       } else {
-        throw new Error(browserResult.error || 'Upload failed');
+        throw new Error(result.error || 'Upload failed');
       }
 
     } catch (error) {
       console.error('File upload failed:', error);
-      
       // Mark upload as failed
       setUploadingFiles(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(uploadId);
         if (existing) {
-          newMap.set(uploadId, { 
-            ...existing, 
-            isUploading: false, 
+          newMap.set(uploadId, {
+            ...existing,
+            isUploading: false,
             isSuccess: false,
             error: error instanceof Error ? error.message : 'Upload failed'
           });
@@ -549,9 +460,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const allMessages = useMemo(() => getMergedMessages(), [getMergedMessages]);
 
   const filteredMessages = useMemo(
-    () => allMessages.filter(message =>
-      message.content.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
+    () => allMessages.filter(message => {
+      // If no search query, show all messages
+      if (!searchQuery.trim()) return true;
+      
+      const query = searchQuery.toLowerCase();
+      
+      // Check message content
+      if (message.content && message.content.toLowerCase().includes(query)) {
+        return true;
+      }
+      
+      // Check file attachment name for file messages
+      if (message.type === 'FILE' && message.fileAttachment) {
+        const fileName = message.fileAttachment.originalName || message.fileAttachment.fileName || '';
+        if (fileName.toLowerCase().includes(query)) {
+          return true;
+        }
+      }
+      
+      return false;
+    }),
     [allMessages, searchQuery]
   );
 

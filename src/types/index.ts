@@ -23,6 +23,7 @@ export interface FileAttachment {
   category: 'image' | 'video' | 'audio' | 'pdf' | 'document' | 'spreadsheet' | 'presentation' | 'archive' | 'file';
   icon: string;
   previewUrl?: string; // For images/thumbnails
+  fileId?: string; // Backend file ID for file operations
 }
 
 export interface Message {

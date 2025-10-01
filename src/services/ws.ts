@@ -1,6 +1,7 @@
 import SockJS from 'sockjs-client';
 import { CompatClient, Stomp } from '@stomp/stompjs';
 import { APP_CONFIG } from '../constants';
+import { getFileCategory, getFileIcon } from '../utils/fileConfig';
 
 export interface ChatMessage {
   senderId: string;
@@ -10,7 +11,8 @@ export interface ChatMessage {
   chatId?: string;
   chatType?: string;
   type?: string;
-  fileAttachment?: any; // Add support for file attachments
+  fileId?: string; // File ID for backend file linking
+  fileAttachment?: any; // Support for file attachments (legacy/optional)
   // add other fields as needed
 }
 
@@ -366,6 +368,26 @@ export function subscribeToChat(
                     `📨 [${subscriptionId}] Parsed message:`,
                     parsedMessage
                   );
+                  
+                  // Convert legacy file fields to fileAttachment if needed
+                  if (parsedMessage.type === 'FILE' && parsedMessage.fileUrl && !parsedMessage.fileAttachment) {
+                    console.log(`🔍 [${subscriptionId}] Processing FILE message - fileId from backend:`, parsedMessage.fileId, 'Type:', typeof parsedMessage.fileId);
+                    parsedMessage.fileAttachment = {
+                      fileId: parsedMessage.fileId || null, // Use fileId from backend
+                      originalName: parsedMessage.fileName || 'Unknown File',
+                      fileName: parsedMessage.fileName || 'Unknown File',
+                      fileSize: parsedMessage.fileSize || 0,
+                      mimeType: parsedMessage.fileType || 'application/octet-stream',
+                      fileUrl: parsedMessage.fileUrl,
+                      uploadedAt: parsedMessage.createdAt || new Date().toISOString(),
+                      uploadedBy: parsedMessage.senderId,
+                      category: getFileCategory(parsedMessage.fileType || ''),
+                      icon: getFileIcon(parsedMessage.fileType || ''),
+                    };
+                    console.log(`📎 [${subscriptionId}] Converted file fields to fileAttachment with fileId:`, parsedMessage.fileAttachment);
+                    console.log(`📎 [${subscriptionId}] Full parsedMessage after conversion:`, JSON.stringify(parsedMessage, null, 2));
+                  }
+                  
                   console.log(`📨 [${subscriptionId}] Message details:`, {
                     id: parsedMessage.id,
                     senderId: parsedMessage.senderId,

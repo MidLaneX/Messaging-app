@@ -4,8 +4,13 @@
  */
 
 import React from 'react';
-import { UploadProgress } from '../../services/fileUpload';
 import { formatFileSize } from '../../utils/fileConfig';
+
+interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+}
 
 interface FileUploadProgressProps {
   /** File being uploaded */

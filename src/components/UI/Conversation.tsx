@@ -30,6 +30,44 @@ const Conversation: React.FC<ConversationProps> = ({
            'Someone';
   };
 
+  // Format last message content for display
+  const getLastMessagePreview = () => {
+    if (!conversation.lastMessage) return '';
+    
+    const message = conversation.lastMessage;
+    
+    // Handle file messages
+    if (message.type === 'FILE') {
+      const fileName = message.fileAttachment?.originalName || 
+                      message.fileAttachment?.fileName || 
+                      message.fileName || 
+                      'File';
+      
+      // If there's text content with the file, show the text
+      if (message.content && message.content.trim()) {
+        return message.content;
+      }
+      
+      // Otherwise show file indicator with name
+      const fileIcon = getFileIcon(message.fileType || message.fileAttachment?.mimeType || '');
+      return `${fileIcon} ${fileName}`;
+    }
+    
+    // Handle regular text messages
+    return message.content || '';
+  };
+
+  // Helper function to get file icon (inline for now)
+  const getFileIcon = (mimeType: string): string => {
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType.includes('pdf')) return '📄';
+    if (mimeType.startsWith('video/')) return '🎥';
+    if (mimeType.startsWith('audio/')) return '🎵';
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('archive')) return '📦';
+    if (mimeType.includes('document') || mimeType.includes('word') || mimeType.includes('doc')) return '📝';
+    return '📎';
+  };
+
   const senderName = getSenderName();
   return (
     <div
@@ -88,14 +126,14 @@ const Conversation: React.FC<ConversationProps> = ({
                                     {senderName}:
                                   </span>
                                   <span className="text-gray-600 truncate">
-                                    {truncateText(conversation.lastMessage.content, 25)}
+                                    {truncateText(getLastMessagePreview(), 25)}
                                   </span>
                                 </div>
                               ) : (
                                 <span className="text-gray-600 truncate block">
                                   {conversation.lastMessage.senderId === currentUserId ? 
-                                    `You: ${truncateText(conversation.lastMessage.content, 26)}` :
-                                    truncateText(conversation.lastMessage.content, 30)}
+                                    `You: ${truncateText(getLastMessagePreview(), 26)}` :
+                                    truncateText(getLastMessagePreview(), 30)}
                                 </span>
                               )}
                             </div>
