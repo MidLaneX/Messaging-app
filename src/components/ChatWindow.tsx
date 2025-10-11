@@ -56,6 +56,8 @@ interface ChatWindowProps {
   onBackPress?: () => void;
   /** Whether keyboard is open on mobile (for layout adjustments) */
   isKeyboardOpen?: boolean;
+  /** Callback for user selection (for starting private chats from group members) */
+  onUserSelect?: (user: User) => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -67,6 +69,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   isMobile = false,
   onBackPress,
   isKeyboardOpen = false,
+  onUserSelect,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -1637,6 +1640,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           onClose={() => setShowGroupMembers(false)}
           groupId={selectedUser.id}
           groupName={selectedUser.name}
+          currentUser={currentUser}
+          onUserSelect={onUserSelect}
         />
       )}
     </div>

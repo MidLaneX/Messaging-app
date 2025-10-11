@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { APP_CONFIG } from '../../constants';
+import { User } from '../../types';
+import { conversationService } from '../../services/conversationService';
 
 interface GroupMember {
   id: string;
@@ -15,6 +17,8 @@ interface GroupMembersModalProps {
   onClose: () => void;
   groupId: string;
   groupName: string;
+  currentUser?: User;
+  onUserSelect?: (user: User) => void;
 }
 
 const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
@@ -22,10 +26,13 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
   onClose,
   groupId,
   groupName,
+  currentUser,
+  onUserSelect,
 }) => {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startingChat, setStartingChat] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && groupId) {
@@ -67,6 +74,54 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
       setError(err.response?.data?.message || 'Failed to load group members');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMemberClick = async (member: GroupMember) => {
+    if (!currentUser || !onUserSelect) {
+      console.log('Cannot start chat: missing currentUser or onUserSelect');
+      return;
+    }
+
+    if (member.id === currentUser.id) {
+      console.log('Cannot start chat with yourself');
+      return;
+    }
+
+    setStartingChat(member.id);
+
+    try {
+      console.log(`Starting private chat with member: ${member.id}`);
+      
+      const result = await conversationService.startChatByUserId(member.id, currentUser.id);
+      
+      if (result.success && result.conversation) {
+        console.log('Successfully started chat:', result.conversation);
+        
+        // Convert conversation to User object for compatibility
+        const userObject: User = {
+          id: result.conversation.id,
+          name: result.conversation.name,
+          avatar: result.conversation.avatar,
+          lastSeen: result.conversation.lastSeen,
+          isOnline: result.conversation.isOnline || false,
+          isGroup: false
+        };
+
+        // Call the user selection handler
+        onUserSelect(userObject);
+        
+        // Close the modal
+        onClose();
+      } else {
+        console.error('Failed to start chat:', result.message);
+        alert(result.message || 'Failed to start chat');
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      alert('Failed to start chat. Please try again.');
+    } finally {
+      setStartingChat(null);
     }
   };
 
@@ -123,11 +178,27 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
                 // Safely get display name
                 const displayName = member.username || member.email || 'Unknown User';
                 const firstChar = displayName.charAt(0).toUpperCase();
+                const isCurrentUser = currentUser && member.id === currentUser.id;
+                const isStartingChat = startingChat === member.id;
                 
                 return (
                   <div
                     key={member.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => !isCurrentUser && !isStartingChat && currentUser && onUserSelect && handleMemberClick(member)}
+                    className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+                      isCurrentUser 
+                        ? 'bg-emerald-50 border border-emerald-200' 
+                        : currentUser && onUserSelect
+                        ? 'hover:bg-gray-50 cursor-pointer hover:shadow-sm'
+                        : 'hover:bg-gray-50'
+                    } ${isStartingChat ? 'opacity-50 cursor-wait' : ''}`}
+                    title={
+                      isCurrentUser 
+                        ? 'This is you' 
+                        : currentUser && onUserSelect
+                        ? `Click to start private chat with ${displayName}`
+                        : undefined
+                    }
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
@@ -157,9 +228,16 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
 
                     {/* Member Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">
-                        {displayName}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-gray-900 truncate">
+                          {displayName}
+                        </p>
+                        {isCurrentUser && (
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                            You
+                          </span>
+                        )}
+                      </div>
                       {member.email && member.username && (
                         <p className="text-sm text-gray-500 truncate">
                           {member.email}
@@ -167,12 +245,30 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
                       )}
                     </div>
 
-                    {/* Status */}
-                    {member.isOnline && (
-                      <span className="text-xs text-emerald-600 font-medium">
-                        Online
-                      </span>
-                    )}
+                    {/* Status and Actions */}
+                    <div className="flex items-center space-x-2">
+                      {isStartingChat ? (
+                        <div className="flex items-center space-x-1">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                          <span className="text-xs text-gray-500">Starting chat...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {member.isOnline && (
+                            <span className="text-xs text-emerald-600 font-medium">
+                              Online
+                            </span>
+                          )}
+                          {!isCurrentUser && currentUser && onUserSelect && (
+                            <div className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}

@@ -690,6 +690,7 @@ const ChatApp: React.FC = () => {
                   isMobile={true}
                   onBackPress={handleBackToUserList}
                   isKeyboardOpen={isKeyboardOpen}
+                  onUserSelect={handleUserSelect}
                 />
               </Suspense>
             </div>
@@ -721,6 +722,7 @@ const ChatApp: React.FC = () => {
               setWsMessages={setWsMessages}
               loadingMessages={loadingMessages}
               isMobile={false}
+              onUserSelect={handleUserSelect}
             />
           </Suspense>
         </div>

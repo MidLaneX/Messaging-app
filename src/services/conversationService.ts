@@ -82,6 +82,61 @@ class ConversationService {
   }
 
   /**
+   * Start a new chat with a user by their ID
+   */
+  async startChatByUserId(userId: string, currentUserId: string): Promise<StartChatResponse> {
+    try {
+      console.log(`Starting chat with user ID: ${userId}`);
+      
+      if (userId === currentUserId) {
+        return {
+          success: false,
+          message: "You cannot start a chat with yourself"
+        };
+      }
+
+      // Get user by ID
+      const targetUser = await userService.getUserById(userId);
+      
+      if (!targetUser) {
+        return {
+          success: false,
+          message: `User not found`
+        };
+      }
+
+      // Create conversation item for the UI
+      const conversation: ConversationItem = {
+        id: targetUser.id,
+        name: targetUser.displayName || targetUser.username,
+        avatar: targetUser.profilePictureUrl,
+        lastMessage: undefined,
+        unreadCount: 0,
+        lastSeen: createSafeDate(targetUser.lastSeen),
+        isOnline: targetUser.isOnline,
+        isGroup: false,
+        userId: targetUser.id
+      };
+
+      console.log('Chat started successfully with user:', targetUser);
+      
+      return {
+        success: true,
+        user: targetUser,
+        conversation,
+        message: `Chat started with ${targetUser.displayName || targetUser.username}`
+      };
+
+    } catch (error: any) {
+      console.error('Error starting chat by user ID:', error);
+      return {
+        success: false,
+        message: 'Failed to start chat. Please try again.'
+      };
+    }
+  }
+
+  /**
    * Search for users by query (username or email)
    */
   async searchUsers(query: string): Promise<CollabUserProfile[]> {
