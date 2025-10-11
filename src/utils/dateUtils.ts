@@ -1,8 +1,27 @@
 /**
+ * Safely convert various date formats to Date object
+ */
+export const createSafeDate = (dateValue: any): Date | undefined => {
+  if (!dateValue) return undefined;
+  if (dateValue instanceof Date) return dateValue;
+
+  try {
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? undefined : date;
+  } catch (error) {
+    console.warn("Invalid date value:", dateValue);
+    return undefined;
+  }
+};
+
+/**
  * Format time for display in messages
  */
-export const formatMessageTime = (date: Date): string => {
-  return date.toLocaleTimeString([], { 
+export const formatMessageTime = (date: Date | string | undefined): string => {
+  const safeDate = createSafeDate(date);
+  if (!safeDate) return '';
+  
+  return safeDate.toLocaleTimeString([], { 
     hour: '2-digit', 
     minute: '2-digit',
     hour12: false 
@@ -12,27 +31,36 @@ export const formatMessageTime = (date: Date): string => {
 /**
  * Format date for display in message separators
  */
-export const formatMessageDate = (date: Date): string => {
+export const formatMessageDate = (date: Date | string | undefined): string => {
+  const safeDate = createSafeDate(date);
+  if (!safeDate) return '';
+  
   const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const isYesterday = date.toDateString() === new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString();
+  const isToday = safeDate.toDateString() === now.toDateString();
+  const isYesterday = safeDate.toDateString() === new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString();
   
   if (isToday) return 'Today';
   if (isYesterday) return 'Yesterday';
   
-  return date.toLocaleDateString([], { 
+  return safeDate.toLocaleDateString([], { 
     month: 'short', 
     day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    year: safeDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
   });
 };
 
 /**
  * Format relative time for last seen or message timestamps
  */
-export const formatRelativeTime = (date: Date): string => {
+export const formatRelativeTime = (date: Date | string | undefined): string => {
+  if (!date) return '';
+  
+  // Convert to Date object safely
+  const safeDate = createSafeDate(date);
+  if (!safeDate) return '';
+  
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = now.getTime() - safeDate.getTime();
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -47,18 +75,22 @@ export const formatRelativeTime = (date: Date): string => {
  * Format last seen text
  */
 export const formatLastSeen = (lastSeen: Date | undefined): string => {
-  if (!lastSeen) return '';
-  
+  if (!lastSeen) return "";
+
   const now = new Date();
   const diff = now.getTime() - lastSeen.getTime();
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  if (minutes < 1) return 'Last seen just now';
-  if (minutes < 60) return `Last seen ${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  if (hours < 24) return `Last seen ${hours} hour${hours > 1 ? 's' : ''} ago`;
-  return `Last seen ${days} day${days > 1 ? 's' : ''} ago`;
+  if (minutes < 1) return "Last seen just now";
+  if (minutes < 60)
+    return `Last seen ${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  if (hours < 24) return `Last seen ${hours} hour${hours > 1 ? "s" : ""} ago`;
+  if (days < 7) return `Last seen ${days} day${days > 1 ? "s" : ""} ago`;
+
+  // For older dates, show the actual date
+  return `Last seen ${lastSeen.toLocaleDateString()}`;
 };
 
 /**

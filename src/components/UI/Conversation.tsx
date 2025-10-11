@@ -1,6 +1,6 @@
 import React from "react";
 import { ConversationItem } from "../../hooks/useConversations";
-import { formatRelativeTime } from "../../utils/dateUtils";
+import { formatRelativeTime, createSafeDate } from "../../utils/dateUtils";
 import { truncateText } from "../../utils";
 import { usersMap } from "../../data/users";
 
@@ -114,7 +114,7 @@ const Conversation: React.FC<ConversationProps> = ({
                       </h3>
                       <div className="text-xs text-emerald-600 ml-2 flex-shrink-0 font-medium">
                         {conversation.lastMessage && conversation.lastMessage.createdAt
-                          ? formatRelativeTime(new Date(conversation.lastMessage.createdAt))
+                          ? formatRelativeTime(conversation.lastMessage.createdAt)
                           : conversation.lastSeen
                           ? formatRelativeTime(conversation.lastSeen)
                           : ''}

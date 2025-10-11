@@ -15,6 +15,7 @@ interface UseConversationsReturn {
   error: string | null;
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
+  addConversation: (conversation: ConversationItem) => void;
   currentPage: number;
 }
 
@@ -35,7 +36,7 @@ const convertUserToConversation = (user: RecentUser): ConversationItem => ({
 const convertGroupToConversation = (group: ChatRoom): ConversationItem => ({
   id: group.id,
   name: group.name || `Group ${group.id}`,
-  avatar: group.avatar || '👥',
+  avatar: group.avatar || "👥",
   lastMessage: group.lastMessage,
   unreadCount: group.unreadCount,
   lastSeen: undefined,
@@ -63,40 +64,49 @@ export const useConversations = (): UseConversationsReturn => {
       if (cachedConversations && cachedConversations.length > 0) {
         setConversations(cachedConversations);
         setLoading(false);
-        console.log('📱 Using cached conversations');
+        console.log("📱 Using cached conversations");
         return;
       }
 
       // Load fresh data from API
-      console.log('🔄 Loading conversations from API...');
-      const usersResponse = await recentUsersService.getInitialRecentUsers(APP_CONFIG.CURRENT_USER_ID);
-      const groupsResponse = await groupService.getUserGroups(APP_CONFIG.CURRENT_USER_ID).catch(() => []);
-      
+      console.log("🔄 Loading conversations from API...");
+      const usersResponse = await recentUsersService.getInitialRecentUsers(
+        APP_CONFIG.CURRENT_USER_ID
+      );
+      const groupsResponse = await groupService
+        .getUserGroups(APP_CONFIG.CURRENT_USER_ID)
+        .catch(() => []);
+
       const users = usersResponse?.users || [];
       const groups = Array.isArray(groupsResponse) ? groupsResponse : [];
-      
+
       // Convert to conversation items
       const userConversations = users.map(convertUserToConversation);
       const groupConversations = groups.map(convertGroupToConversation);
-      
+
       // Combine and sort by last message timestamp
       const allConversations = [...userConversations, ...groupConversations];
       allConversations.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
-        const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
+        const aTime = a.lastMessage?.createdAt
+          ? new Date(a.lastMessage.createdAt).getTime()
+          : -1;
+        const bTime = b.lastMessage?.createdAt
+          ? new Date(b.lastMessage.createdAt).getTime()
+          : -1;
         return bTime - aTime;
       });
-      
+
       setConversations(allConversations);
       setHasMore(usersResponse?.hasMore || false);
       setCurrentPage(usersResponse?.currentPage || 1);
 
       // Save to cache
       conversationPersistence.saveConversations(allConversations);
-
     } catch (err) {
-      console.error('Error loading conversations:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load conversations');
+      console.error("Error loading conversations:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load conversations"
+      );
       setConversations([]);
     } finally {
       setLoading(false);
@@ -117,15 +127,21 @@ export const useConversations = (): UseConversationsReturn => {
       );
 
       // Convert new users to conversations
-      const newUserConversations = (response?.users || []).map(convertUserToConversation);
-      
+      const newUserConversations = (response?.users || []).map(
+        convertUserToConversation
+      );
+
       // Add to existing conversations (groups are only loaded once)
-      setConversations(prev => {
+      setConversations((prev) => {
         const combined = [...(prev || []), ...newUserConversations];
         // Re-sort after adding new items
         const sorted = combined.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
-          const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
+          const aTime = a.lastMessage?.createdAt
+            ? new Date(a.lastMessage.createdAt).getTime()
+            : -1;
+          const bTime = b.lastMessage?.createdAt
+            ? new Date(b.lastMessage.createdAt).getTime()
+            : -1;
           return bTime - aTime;
         });
 
@@ -133,12 +149,14 @@ export const useConversations = (): UseConversationsReturn => {
         conversationPersistence.saveConversations(sorted);
         return sorted;
       });
-      
+
       setHasMore(response?.hasMore || false);
       setCurrentPage(nextPage);
     } catch (err) {
-      console.error('Error loading more conversations:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load more conversations');
+      console.error("Error loading more conversations:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load more conversations"
+      );
     } finally {
       setLoadingMore(false);
     }
@@ -148,6 +166,40 @@ export const useConversations = (): UseConversationsReturn => {
     conversationPersistence.clearConversations();
     await loadInitial();
   }, [loadInitial]);
+
+  const addConversation = useCallback((newConversation: ConversationItem) => {
+    setConversations((prev) => {
+      // Check if conversation already exists
+      const existingIndex = prev.findIndex(
+        (conv) => conv.id === newConversation.id
+      );
+
+      let updated: ConversationItem[];
+      if (existingIndex >= 0) {
+        // Update existing conversation
+        updated = [...prev];
+        updated[existingIndex] = newConversation;
+      } else {
+        // Add new conversation at the beginning
+        updated = [newConversation, ...prev];
+      }
+
+      // Sort by last message timestamp
+      const sorted = updated.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt
+          ? new Date(a.lastMessage.createdAt).getTime()
+          : Date.now();
+        const bTime = b.lastMessage?.createdAt
+          ? new Date(b.lastMessage.createdAt).getTime()
+          : Date.now();
+        return bTime - aTime;
+      });
+
+      // Update cache
+      conversationPersistence.saveConversations(sorted);
+      return sorted;
+    });
+  }, []);
 
   useEffect(() => {
     loadInitial();
@@ -160,6 +212,7 @@ export const useConversations = (): UseConversationsReturn => {
     error,
     loadMore,
     refresh,
+    addConversation,
     currentPage,
   };
 };
