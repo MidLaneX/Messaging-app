@@ -6,3 +6,4 @@ export * from "./backendFileService";
 export * from "./authService";
 export * from "./userMappingService";
 export * from "./socialAuthService";
+export * from "./userService";

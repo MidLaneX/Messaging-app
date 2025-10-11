@@ -10,6 +10,7 @@ import { generateUUID } from "./utils";
 import { messagePersistence } from "./services/messagePersistence";
 import { selectedConversationPersistence } from "./services/selectedConversationPersistence";
 import { conversationPersistence } from "./services/conversationPersistence";
+import { userService } from "./services/userService";
 import {
   connectWebSocket,
   disconnectWebSocket,
@@ -59,18 +60,35 @@ const ChatApp: React.FC = () => {
   const isMobile = useIsMobile();
   const { viewportHeight, isKeyboardOpen } = useViewportHeight();
   const [showChatView, setShowChatView] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Fetch current user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (currentUserId) {
+        const profile = await userService.getUserById(currentUserId);
+        if (profile) {
+          setUserProfile(profile);
+          console.log("✅ Fetched user profile:", profile);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [currentUserId]);
 
   // Return early if not logged in
   if (!isLoggedIn || !currentUserId) {
     return null;
   }
 
-  // Current user object
+  // Current user object with profile data
   const currentUser: User = {
     id: currentUserId,
-    name: currentUserName || "User",
+    name: userProfile?.username || currentUserName || "User",
     isOnline: true,
-    avatar: currentUserName === "Parakrama" ? "👨‍💼" : "👨‍�",
+    avatar:
+      userProfile?.profilePictureUrl ||
+      (currentUserName === "Parakrama" ? "👨‍💼" : "👨‍💻"),
   };
 
   // Use the new conversations hook
