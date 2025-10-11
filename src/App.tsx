@@ -652,6 +652,7 @@ const ChatApp: React.FC = () => {
                 hasMore={hasMore}
                 onLoadMore={loadMore}
                 isMobile={true}
+                currentUserProfile={userProfile}
               />
             </Suspense>
           </div>
@@ -692,6 +693,7 @@ const ChatApp: React.FC = () => {
               hasMore={hasMore}
               onLoadMore={loadMore}
               isMobile={false}
+              currentUserProfile={userProfile}
             />
           </Suspense>
           <Suspense fallback={<LoadingSpinner />}>

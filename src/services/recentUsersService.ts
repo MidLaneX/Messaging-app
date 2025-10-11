@@ -12,6 +12,7 @@ export interface ApiUser {
   createdAt: string;
   lastSeen: string;
   online: boolean;
+  profilePictureUrl?: string;
 }
 
 // API Conversation structure from backend
@@ -118,7 +119,7 @@ class RecentUsersService {
     return {
       id: apiUser.id,
       name: apiUser.displayName || apiUser.username,
-      avatar: "👤", // Default avatar since API doesn't provide one
+      avatar: apiUser.profilePictureUrl || "👤", // Use profile picture URL or default avatar
       lastSeen: new Date(apiUser.lastSeen),
       isOnline: apiUser.online,
       lastMessage: undefined, // TODO: Fetch last message separately if needed
@@ -132,7 +133,7 @@ class RecentUsersService {
     return {
       id: user.id,
       name: user.displayName || user.username,
-      avatar: "👤", // Default avatar since API doesn't provide one
+      avatar: user.profilePictureUrl || "👤", // Use profile picture URL or default avatar
       lastSeen: new Date(user.lastSeen),
       isOnline: user.online,
       lastMessage: apiConversation.lastMessage ? {

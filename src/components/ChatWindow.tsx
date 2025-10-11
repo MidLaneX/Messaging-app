@@ -658,7 +658,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div
-      className={`flex-1 flex flex-col bg-gray-50 ${
+      className={`flex-1 flex flex-col bg-gray-50 overflow-hidden ${
         isMobile ? "h-full relative" : "h-full"
       }`}
       onKeyDown={handleKeyDown}
@@ -666,9 +666,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     >
       {/* Chat Header */}
       <div
-        className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 ${
+        className={`bg-gradient-to-r from-emerald-800 to-green-700 text-white shadow-md border-b border-emerald-700 flex-shrink-0 ${
           isMobile ? "fixed top-0 left-0 right-0 z-50 px-4 py-3" : "px-6 py-4"
-        } flex items-center justify-between`}
+        } flex items-center justify-between overflow-hidden`}
         style={
           isMobile
             ? {
@@ -746,18 +746,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   ></div>
                 )}
               </div>
-              <div className="flex flex-col justify-center">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <h3
                   className={`${
                     isMobile ? "text-base" : "text-xl"
-                  } font-semibold text-white leading-tight tracking-tight`}
+                  } font-semibold text-white leading-tight tracking-tight truncate`}
                 >
                   {selectedUser.name}
                 </h3>
                 <p
                   className={`${
                     isMobile ? "text-xs" : "text-sm"
-                  } text-emerald-100 font-medium`}
+                  } text-emerald-100 font-medium truncate`}
                 >
                   {selectedUser.isGroup
                     ? `${
@@ -866,12 +866,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           </>
         ) : (
-          <div className="w-full flex items-center space-x-3">
+          <div className="w-full flex items-center space-x-3 overflow-hidden">
             <button
               onClick={handleSearchToggle}
               className={`${
                 isMobile ? "p-1.5" : "p-2"
-              } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white`}
+              } rounded-full hover:bg-emerald-500 hover:bg-opacity-20 transition-colors text-white flex-shrink-0`}
               title="Close search"
               aria-label="Close search"
             >
@@ -889,7 +889,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 />
               </svg>
             </button>
-            <div className="flex-1 relative">
+            <div className="flex-1 relative min-w-0">
               <input
                 type="text"
                 value={searchQuery}
@@ -936,7 +936,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       >
         <div
           ref={messagesContainerRef}
-          className={`flex-1 overflow-y-auto ${
+          className={`flex-1 overflow-y-auto overflow-x-hidden ${
             isMobile ? "px-2 py-1" : "px-4 py-2"
           } space-y-1`}
           style={{ scrollBehavior: "auto" }}
@@ -999,7 +999,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-hidden">
               {/* Show uploading files */}
               {Array.from(uploadingFiles.entries()).map(
                 ([uploadId, uploadInfo]) => (
@@ -1066,12 +1066,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           isMobile={isMobile}
         />
 
-        <div className={`${isMobile ? "px-3 py-2" : "px-6 py-4"}`}>
+        <div
+          className={`${isMobile ? "px-3 py-2" : "px-6 py-4"} overflow-hidden`}
+        >
           <form
             onSubmit={handleSendMessage}
             className={`flex items-center ${
               isMobile ? "space-x-1" : "space-x-3"
-            }`}
+            } overflow-hidden`}
           >
             {/* Hidden file input */}
             <input
@@ -1119,12 +1121,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <div
               className={`flex-1 bg-gray-100 ${
                 isMobile ? "rounded-xl" : "rounded-3xl"
-              } border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200`}
+              } border border-gray-200 focus-within:border-emerald-300 focus-within:bg-white transition-all duration-200 min-w-0`}
             >
               <div
                 className={`flex items-center ${
                   isMobile ? "px-2 py-1" : "px-4 py-2"
-                }`}
+                } overflow-hidden`}
               >
                 <textarea
                   ref={textareaRef}
@@ -1132,7 +1134,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onChange={handleMessageChange}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent ${
+                  className={`flex-1 border-none outline-none resize-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0 ${
                     isMobile
                       ? "text-sm leading-5 py-1"
                       : "text-base leading-6 py-1"

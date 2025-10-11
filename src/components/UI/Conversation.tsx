@@ -79,14 +79,30 @@ const Conversation: React.FC<ConversationProps> = ({
     >     
                   {/* Avatar */}
                   <div className="relative mr-4 flex-shrink-0">
-                    <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center text-xl shadow-sm border border-gray-200">
-                      {conversation.avatar || (conversation.isGroup ? '👥' : '👤')}
+                    <div className="w-11 h-11 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center text-lg shadow-sm border border-gray-200 overflow-hidden">
+                      {conversation.avatar && conversation.avatar.startsWith('http') ? (
+                        <img
+                          src={conversation.avatar}
+                          alt={conversation.name}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            // Fallback to default icon if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.innerHTML = conversation.isGroup ? '👥' : '👤';
+                            }
+                          }}
+                        />
+                      ) : (
+                        conversation.avatar || (conversation.isGroup ? '👥' : '👤')
+                      )}
                     </div>
                     {!conversation.isGroup && conversation.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                     )}
                     {conversation.isGroup && (
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                     )}
                   </div>
 

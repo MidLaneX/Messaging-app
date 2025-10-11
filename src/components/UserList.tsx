@@ -17,6 +17,12 @@ interface UserListProps {
   onLoadMore: () => void;
   /** Whether the component is being used on mobile */
   isMobile?: boolean;
+  /** Current user profile data with profile picture URL */
+  currentUserProfile?: {
+    username?: string;
+    profilePictureUrl?: string;
+    displayName?: string;
+  };
 }
 
 type TabType = 'all' | 'users' | 'groups';
@@ -30,6 +36,7 @@ const UserList: React.FC<UserListProps> = ({
   hasMore,
   onLoadMore,
   isMobile = false,
+  currentUserProfile,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -113,6 +120,25 @@ const UserList: React.FC<UserListProps> = ({
   }, [conversations]);
 
   const getUserAvatar = () => {
+    // If we have a profile picture URL, return an img element
+    if (currentUserProfile?.profilePictureUrl) {
+      return (
+        <img
+          src={currentUserProfile.profilePictureUrl}
+          alt={currentUserProfile.displayName || currentUserProfile.username || currentUserName || "User"}
+          className="w-full h-full object-cover rounded-full"
+          onError={(e) => {
+            // Fallback to emoji if image fails to load
+            const target = e.target as HTMLImageElement;
+            const parent = target.parentElement;
+            if (parent) {
+              parent.innerHTML = currentUserName === "Parakrama" ? "👨‍💼" : "👨‍💻";
+            }
+          }}
+        />
+      );
+    }
+    // Fallback to emoji avatars
     return currentUserName === "Parakrama" ? "👨‍💼" : "👨‍💻";
   };
 
@@ -158,19 +184,19 @@ const UserList: React.FC<UserListProps> = ({
           <div className="flex items-center space-x-4">
             <div className="relative">
               <div className={`${
-                isMobile ? 'text-2xl p-2.5' : 'text-3xl p-3.5'
-              } bg-white bg-opacity-15 rounded-full backdrop-blur-sm ring-2 ring-white ring-opacity-30 shadow-lg`}>
+                isMobile ? 'w-10 h-10 text-lg' : 'w-12 h-12 text-xl'
+              } bg-white bg-opacity-15 rounded-full backdrop-blur-sm ring-2 ring-white ring-opacity-30 shadow-lg flex items-center justify-center overflow-hidden`}>
                 {getUserAvatar()}
               </div>
               <div className={`absolute -bottom-1 -right-1 ${
-                isMobile ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5'
+                isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'
               } ${getUserStatusColor()} rounded-full border-2 border-white shadow-md`}></div>
             </div>
             <div className="flex-1 min-w-0">
               <h2 className={`${
                 isMobile ? 'text-lg' : 'text-xl'
               } font-bold text-white truncate tracking-tight`}>
-                {currentUserName}
+                {currentUserProfile?.displayName || currentUserProfile?.username || currentUserName}
               </h2>
               <p className="text-emerald-100 font-medium mt-0.5">
                 Available
