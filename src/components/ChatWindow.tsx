@@ -204,128 +204,113 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const uploadFile = useCallback(async (file: File) => {
-    const uploadId = generateUUID();
-    const initialProgress: UploadProgress = { loaded: 0, total: file.size, percentage: 0 };
-    
-    // Add to uploading files map
-    setUploadingFiles(prev => new Map(prev.set(uploadId, {
-      file,
-      progress: initialProgress,
-      isUploading: true,
-      isSuccess: false,
-    })));
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const uploadId = generateUUID();
+      const initialProgress: UploadProgress = {
+        loaded: 0,
+        total: file.size,
+        percentage: 0,
+      };
 
-    try {
-      console.log('Attempting backend file upload...');
-      const result = await backendFileService.uploadFile(
-        file,
-        currentUser.id,
-        (progress: UploadProgress) => {
-          setUploadingFiles(prev => {
+      // Add to uploading files map
+      setUploadingFiles(
+        (prev) =>
+          new Map(
+            prev.set(uploadId, {
+              file,
+              progress: initialProgress,
+              isUploading: true,
+              isSuccess: false,
+            })
+          )
+      );
+
+      try {
+        console.log("Starting file upload to backend...");
+        const result = await backendFileService.uploadFile(
+          file,
+          currentUser.id,
+          (progress: UploadProgress) => {
+            setUploadingFiles((prev) => {
+              const newMap = new Map(prev);
+              const existing = newMap.get(uploadId);
+              if (existing) {
+                newMap.set(uploadId, { ...existing, progress });
+              }
+              return newMap;
+            });
+          }
+        );
+
+        if (result.success && result.fileId) {
+          console.log("✅ File uploaded successfully:", result.fileId);
+
+          // Mark upload as complete
+          setUploadingFiles((prev) => {
             const newMap = new Map(prev);
             const existing = newMap.get(uploadId);
             if (existing) {
-              newMap.set(uploadId, { ...existing, progress });
+              newMap.set(uploadId, {
+                ...existing,
+                isUploading: false,
+                isSuccess: true,
+                progress: {
+                  loaded: file.size,
+                  total: file.size,
+                  percentage: 100,
+                },
+              });
             }
             return newMap;
           });
+
+          // Send file message via WebSocket with fileId only - backend will create full message
+          const wsMessage = {
+            senderId: currentUser.id,
+            ...(selectedUser?.isGroup
+              ? { groupId: selectedUser.id, chatType: "GROUP" }
+              : { recipientId: selectedUser?.id || "", chatType: "PRIVATE" }),
+            content: "", // Empty content for file-only messages
+            type: "FILE",
+            fileId: result.fileId, // Send only the file ID
+          };
+
+          console.log("📤 Sending file message via WebSocket:", wsMessage);
+          await sendChatMessage(wsMessage);
+          console.log("✅ File message sent successfully");
+
+          // Remove from uploading files after a delay
+          setTimeout(() => {
+            setUploadingFiles((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(uploadId);
+              return newMap;
+            });
+          }, 2000);
+        } else {
+          throw new Error(result.error || "Upload failed");
         }
-      );
-      
-      if (result.success && result.fileUrl && result.fileId) {
-        console.log('Backend file upload successful:', result);
-        
-        // Mark upload as complete
-        setUploadingFiles(prev => {
+      } catch (error) {
+        console.error("❌ File upload failed:", error);
+        // Mark upload as failed
+        setUploadingFiles((prev) => {
           const newMap = new Map(prev);
           const existing = newMap.get(uploadId);
           if (existing) {
-            newMap.set(uploadId, { 
-              ...existing, 
-              isUploading: false, 
-              isSuccess: true,
-              progress: { loaded: file.size, total: file.size, percentage: 100 }
+            newMap.set(uploadId, {
+              ...existing,
+              isUploading: false,
+              isSuccess: false,
+              error: error instanceof Error ? error.message : "Upload failed",
             });
           }
           return newMap;
         });
-
-        // Create file message
-        const fileMessage: Message = {
-          id: generateUUID(),
-          senderId: currentUser.id,
-          ...(selectedUser?.isGroup 
-            ? { groupId: selectedUser.id, chatType: "GROUP" as const }
-            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" as const }
-          ),
-          createdAt: new Date().toISOString(),
-          content: '', // Optional caption - can be added later
-          type: "FILE" as const,
-          fileAttachment: {
-            originalName: file.name,
-            fileName: result.fileName || file.name,
-            fileSize: result.fileSize || file.size,
-            mimeType: result.mimeType || file.type,
-            fileUrl: result.fileUrl,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: currentUser.id,
-            category: getFileCategory(file.type),
-            icon: getFileIcon(file.type),
-            fileId: result.fileId, // Store file ID for backend operations
-          },
-        };
-
-        // Send via WebSocket
-        const wsMessage = {
-          senderId: currentUser.id,
-          ...(selectedUser?.isGroup 
-            ? { groupId: selectedUser.id, chatType: "GROUP" }
-            : { recipientId: selectedUser?.id || '', chatType: "PRIVATE" }
-          ),
-          content: fileMessage.content,
-          type: "FILE",
-          fileId: result.fileId, // Send file ID instead of fileAttachment object
-        };
-        
-        await sendChatMessage(wsMessage);
-        
-        // Add to local state
-        setWsMessages(prev => [...prev, fileMessage]);
-        
-        console.log('File message sent:', fileMessage);
-
-        // Remove from uploading files after a delay
-        setTimeout(() => {
-          setUploadingFiles(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(uploadId);
-            return newMap;
-          });
-        }, 2000);
-
-      } else {
-        throw new Error(result.error || 'Upload failed');
       }
-
-    } catch (error) {
-      console.error('File upload failed:', error);
-      // Mark upload as failed
-      setUploadingFiles(prev => {
-        const newMap = new Map(prev);
-        const existing = newMap.get(uploadId);
-        if (existing) {
-          newMap.set(uploadId, {
-            ...existing,
-            isUploading: false,
-            isSuccess: false,
-            error: error instanceof Error ? error.message : 'Upload failed'
-          });
-        }
-        return newMap;
-      });
-    }
-  }, [currentUser.id, selectedUser, setWsMessages]);
+    },
+    [currentUser.id, selectedUser, sendChatMessage]
+  );
 
   // Cancel file upload
   const cancelUpload = useCallback((uploadId: string) => {
