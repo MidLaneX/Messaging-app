@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { socialAuthService, type GoogleCredentialResponse } from '../services/socialAuthService';
+import { diagnoseGoogleOAuth } from '../utils/googleOAuthDiagnostic';
 
 interface GoogleLoginButtonProps {
   onSuccess: (accessToken: string, email: string, name: string, profilePicture?: string) => void;
@@ -30,10 +31,18 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
   useEffect(() => {
     if (initialized.current || disabled || !isConfigured) return;
 
+    // Run diagnostic on initialization
+    diagnoseGoogleOAuth();
+
     const initGoogle = async () => {
       try {
         await socialAuthService.initializeGoogle(async (response: GoogleCredentialResponse) => {
           try {
+            console.log('🔍 Google credential received:', {
+              credentialLength: response.credential?.length,
+              credentialPreview: response.credential?.substring(0, 50) + '...'
+            });
+            
             const socialResponse = await socialAuthService.decodeGoogleCredential(response.credential);
             onSuccess(
               socialResponse.accessToken,
@@ -42,7 +51,8 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
               socialResponse.profilePicture
             );
           } catch (error) {
-            onError('Failed to process Google login');
+            console.error('❌ Failed to process Google credential:', error);
+            onError(`Failed to process Google login: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         });
 

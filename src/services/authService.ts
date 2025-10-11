@@ -139,6 +139,13 @@ class AuthService {
   async socialLogin(data: SocialLoginRequest): Promise<AuthResponse> {
     try {
       console.log(`🔐 Attempting ${data.provider} login to main app...`);
+      console.log("📊 Login data:", {
+        provider: data.provider,
+        email: data.email,
+        name: data.name,
+        hasAccessToken: !!data.accessToken,
+        tokenLength: data.accessToken?.length,
+      });
 
       const response = await fetch(
         `${this.baseURL}/auth/initial/social/login`,
@@ -153,6 +160,31 @@ class AuthService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+
+        // Enhanced error logging for OAuth issues
+        console.error("❌ Social login failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          provider: data.provider,
+        });
+
+        // Specific handling for Google OAuth errors
+        if (
+          data.provider === "google" &&
+          errorData.message?.includes("client ID")
+        ) {
+          throw new Error(
+            `Google OAuth Configuration Error: ${errorData.message}\n\n` +
+              `This usually means:\n` +
+              `1. The backend expects a different Google Client ID\n` +
+              `2. The current domain (${window.location.origin}) is not authorized in Google Console\n` +
+              `3. The Google Client ID is not properly configured on the backend\n\n` +
+              `Current frontend Client ID: ${process.env.REACT_APP_GOOGLE_CLIENT_ID}\n` +
+              `Backend API: ${this.baseURL}`
+          );
+        }
+
         throw new Error(
           errorData.message ||
             `${data.provider} login failed: ${response.statusText}`
