@@ -21,6 +21,14 @@ export interface RegisterRequest {
   phone?: string;
 }
 
+export interface SocialLoginRequest {
+  provider: "google" | "facebook";
+  accessToken: string;
+  email: string;
+  name: string;
+  profilePicture?: string;
+}
+
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;
@@ -66,28 +74,30 @@ class AuthService {
    */
   async login(data: LoginRequest): Promise<AuthResponse> {
     try {
-      console.log('🔐 Attempting login to main app...');
-      
+      console.log("🔐 Attempting login to main app...");
+
       const response = await fetch(`${this.baseURL}/auth/initial/login`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Login failed: ${response.statusText}`);
+        throw new Error(
+          errorData.message || `Login failed: ${response.statusText}`
+        );
       }
 
       const authData: AuthResponse = await response.json();
-      console.log('✅ Login successful, user_id:', authData.user_id);
-      
+      console.log("✅ Login successful, user_id:", authData.user_id);
+
       return authData;
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      throw new Error(error.message || 'Failed to login');
+      console.error("❌ Login error:", error);
+      throw new Error(error.message || "Failed to login");
     }
   }
 
@@ -96,28 +106,69 @@ class AuthService {
    */
   async register(data: RegisterRequest): Promise<AuthResponse> {
     try {
-      console.log('📝 Attempting registration to main app...');
-      
+      console.log("📝 Attempting registration to main app...");
+
       const response = await fetch(`${this.baseURL}/auth/initial/register`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Registration failed: ${response.statusText}`);
+        throw new Error(
+          errorData.message || `Registration failed: ${response.statusText}`
+        );
       }
 
       const authData: AuthResponse = await response.json();
-      console.log('✅ Registration successful, user_id:', authData.user_id);
-      
+      console.log("✅ Registration successful, user_id:", authData.user_id);
+
       return authData;
     } catch (error: any) {
-      console.error('❌ Registration error:', error);
-      throw new Error(error.message || 'Failed to register');
+      console.error("❌ Registration error:", error);
+      throw new Error(error.message || "Failed to register");
+    }
+  }
+
+  /**
+   * Social login (Google/Facebook)
+   */
+  async socialLogin(data: SocialLoginRequest): Promise<AuthResponse> {
+    try {
+      console.log(`🔐 Attempting ${data.provider} login to main app...`);
+
+      const response = await fetch(
+        `${this.baseURL}/auth/initial/social/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message ||
+            `${data.provider} login failed: ${response.statusText}`
+        );
+      }
+
+      const authData: AuthResponse = await response.json();
+      console.log(
+        `✅ ${data.provider} login successful, user_id:`,
+        authData.user_id
+      );
+
+      return authData;
+    } catch (error: any) {
+      console.error(`❌ ${data.provider} login error:`, error);
+      throw new Error(error.message || `Failed to login with ${data.provider}`);
     }
   }
 
@@ -126,58 +177,69 @@ class AuthService {
    */
   async refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
     try {
-      console.log('🔄 Refreshing token...');
-      
+      console.log("🔄 Refreshing token...");
+
       const response = await fetch(`${this.baseURL}/auth/initial/refresh`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Token refresh failed: ${response.statusText}`);
+        throw new Error(
+          errorData.message || `Token refresh failed: ${response.statusText}`
+        );
       }
 
       const authData: AuthResponse = await response.json();
-      console.log('✅ Token refreshed successfully');
-      
+      console.log("✅ Token refreshed successfully");
+
       return authData;
     } catch (error: any) {
-      console.error('❌ Token refresh error:', error);
-      throw new Error(error.message || 'Failed to refresh token');
+      console.error("❌ Token refresh error:", error);
+      throw new Error(error.message || "Failed to refresh token");
     }
   }
 
   /**
    * Get user profile from main app
    */
-  async getUserProfile(userId: number, accessToken: string): Promise<UserProfile> {
+  async getUserProfile(
+    userId: number,
+    accessToken: string
+  ): Promise<UserProfile> {
     try {
-      console.log('👤 Fetching user profile from main app...');
-      
-      const response = await fetch(`${this.baseURL}/auth/user/profile/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      console.log("👤 Fetching user profile from main app...");
+
+      const response = await fetch(
+        `${this.baseURL}/auth/user/profile/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to fetch user profile: ${response.statusText}`);
+        throw new Error(
+          errorData.message ||
+            `Failed to fetch user profile: ${response.statusText}`
+        );
       }
 
       const profile: UserProfile = await response.json();
-      console.log('✅ User profile fetched successfully');
-      
+      console.log("✅ User profile fetched successfully");
+
       return profile;
     } catch (error: any) {
-      console.error('❌ Get user profile error:', error);
-      throw new Error(error.message || 'Failed to fetch user profile');
+      console.error("❌ Get user profile error:", error);
+      throw new Error(error.message || "Failed to fetch user profile");
     }
   }
 
@@ -186,19 +248,19 @@ class AuthService {
    */
   async logout(accessToken: string): Promise<void> {
     try {
-      console.log('👋 Logging out from main app...');
-      
+      console.log("👋 Logging out from main app...");
+
       await fetch(`${this.baseURL}/auth/logout`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
-      console.log('✅ Logout successful');
+      console.log("✅ Logout successful");
     } catch (error: any) {
-      console.error('❌ Logout error:', error);
+      console.error("❌ Logout error:", error);
       // Don't throw error on logout, just log it
     }
   }

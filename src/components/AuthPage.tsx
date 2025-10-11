@@ -1,33 +1,106 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { userMappingService } from '../services/userMappingService';
+import GoogleLoginButton from "./GoogleLoginButton";
+import FacebookLoginButton from "./FacebookLoginButton";
 
 interface AuthPageProps {
-  onAuthSuccess: (mainUserId: number, collabUserId: string, userName: string) => void;
+  onAuthSuccess: (
+    mainUserId: number,
+    collabUserId: string,
+    userName: string
+  ) => void;
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  const handleSocialLogin = async (
+    provider: "google" | "facebook",
+    accessToken: string,
+    email: string,
+    name: string,
+    profilePicture?: string
+  ) => {
+    setError("");
+    setLoading(true);
+
+    try {
+      console.log(`🔐 Processing ${provider} login...`);
+
+      // Login with social provider
+      const authResponse = await authService.socialLogin({
+        provider,
+        accessToken,
+        email,
+        name,
+        profilePicture,
+      });
+
+      // Save access token
+      userMappingService.saveAccessToken(authResponse.access_token);
+
+      // Fetch collab service user ID using main app user ID
+      const collabUser = await userMappingService.getCollabUserByMainUserId(
+        authResponse.user_id,
+        authResponse.access_token
+      );
+
+      console.log("✅ Social authentication successful!");
+      console.log("Provider:", provider);
+      console.log("Main App User ID:", authResponse.user_id);
+      console.log("Collab Service User ID:", collabUser.id);
+      console.log("User Name:", name);
+
+      // Call success callback with both IDs
+      onAuthSuccess(authResponse.user_id, collabUser.id, name);
+    } catch (err: any) {
+      console.error("❌ Social authentication error:", err);
+
+      let errorMessage =
+        err.message || `${provider} authentication failed. Please try again.`;
+
+      if (err.message && err.message.includes("404")) {
+        errorMessage =
+          "⚠️ Backend server not found. Please ensure:\n" +
+          "1. Main app backend is running on http://localhost:8080\n" +
+          "2. Collab service is running on http://localhost:8090\n" +
+          "3. Check the console for detailed error logs";
+      } else if (err.message && err.message.includes("User not found")) {
+        errorMessage =
+          `⚠️ Account not found in collaboration service.\n` +
+          `Please contact administrator to set up your account.`;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       let authResponse;
-      
+
       if (isLogin) {
         // Login
         authResponse = await authService.login({ email, password });
       } else {
         // Register
-        authResponse = await authService.register({ email, password, phone: phone || undefined });
+        authResponse = await authService.register({
+          email,
+          password,
+          phone: phone || undefined,
+        });
       }
 
       // Save access token
@@ -47,31 +120,34 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         authResponse.access_token
       );
 
-      console.log('✅ Authentication successful!');
-      console.log('Main App User ID:', authResponse.user_id);
-      console.log('Collab Service User ID:', collabUser.id);
-      console.log('User Name:', userName);
+      console.log("✅ Authentication successful!");
+      console.log("Main App User ID:", authResponse.user_id);
+      console.log("Collab Service User ID:", collabUser.id);
+      console.log("User Name:", userName);
 
       // Call success callback with both IDs
       onAuthSuccess(authResponse.user_id, collabUser.id, userName);
     } catch (err: any) {
-      console.error('❌ Authentication error:', err);
-      
+      console.error("❌ Authentication error:", err);
+
       // Provide more helpful error messages
-      let errorMessage = err.message || 'Authentication failed. Please try again.';
-      
-      if (err.message && err.message.includes('404')) {
-        errorMessage = '⚠️ Backend server not found. Please ensure:\n' +
-          '1. Main app backend is running on http://localhost:8080\n' +
-          '2. Collab service is running on http://localhost:8090\n' +
-          '3. Check the console for detailed error logs';
-      } else if (err.message && err.message.includes('Network')) {
-        errorMessage = '⚠️ Network error. Please check:\n' +
-          '1. Your internet connection\n' +
-          '2. Backend services are running\n' +
-          '3. CORS is properly configured';
+      let errorMessage =
+        err.message || "Authentication failed. Please try again.";
+
+      if (err.message && err.message.includes("404")) {
+        errorMessage =
+          "⚠️ Backend server not found. Please ensure:\n" +
+          "1. Main app backend is running on http://localhost:8080\n" +
+          "2. Collab service is running on http://localhost:8090\n" +
+          "3. Check the console for detailed error logs";
+      } else if (err.message && err.message.includes("Network")) {
+        errorMessage =
+          "⚠️ Network error. Please check:\n" +
+          "1. Your internet connection\n" +
+          "2. Backend services are running\n" +
+          "3. CORS is properly configured";
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -182,6 +258,71 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             )}
           </button>
         </form>
+
+        {/* Social Login Divider - Only show on login */}
+        {isLogin && (
+          <>
+            <div className="mt-6 flex items-center">
+              <div className="flex-1 border-t border-gray-200"></div>
+              <span className="px-4 text-sm text-gray-500">
+                Or continue with
+              </span>
+              <div className="flex-1 border-t border-gray-200"></div>
+            </div>
+
+            {/* Social Login Buttons - Always show */}
+            <div className="mt-6 space-y-3">
+              {/* Google Login - Show with config status */}
+              <GoogleLoginButton
+                onSuccess={(accessToken, email, name, profilePicture) =>
+                  handleSocialLogin(
+                    "google",
+                    accessToken,
+                    email,
+                    name,
+                    profilePicture
+                  )
+                }
+                onError={(error) => setError(error)}
+                disabled={loading}
+              />
+
+              {/* Facebook Login - Show with config status */}
+              <FacebookLoginButton
+                onSuccess={(accessToken, email, name, profilePicture) =>
+                  handleSocialLogin(
+                    "facebook",
+                    accessToken,
+                    email,
+                    name,
+                    profilePicture
+                  )
+                }
+                onError={(error) => setError(error)}
+                disabled={loading}
+              />
+
+              {/* Show configuration status */}
+              {(!process.env.REACT_APP_GOOGLE_CLIENT_ID ||
+                !process.env.REACT_APP_FACEBOOK_APP_ID) && (
+                <div className="text-center text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  {!process.env.REACT_APP_GOOGLE_CLIENT_ID &&
+                  !process.env.REACT_APP_FACEBOOK_APP_ID ? (
+                    <>
+                      ⚠️ Social login not configured. See{" "}
+                      <code className="text-xs">OAUTH_FIX_QUICK.md</code> to
+                      enable.
+                    </>
+                  ) : !process.env.REACT_APP_GOOGLE_CLIENT_ID ? (
+                    <>⚠️ Google login not configured</>
+                  ) : (
+                    <>⚠️ Facebook login not configured</>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="mt-6 text-center">
           <button
