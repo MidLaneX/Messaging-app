@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import "./App.css";
-import Login from "./components/Login";
+import AuthPage from "./components/AuthPage";
 import { UserProvider, useUser } from "./context/UserContext";
 import { useConversations } from "./hooks";
 import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
@@ -38,16 +38,18 @@ const ChatApp: React.FC = () => {
   const [wsMessages, setWsMessages] = useState<Message[]>(() => {
     // Clean up old messages first
     messagePersistence.cleanupOldMessages();
-    
+
     // Load persisted WebSocket messages on initialization
     const persistedMessages = messagePersistence.loadWsMessages();
-    console.log(`📱 Loaded ${persistedMessages.length} persisted WebSocket messages`);
+    console.log(
+      `📱 Loaded ${persistedMessages.length} persisted WebSocket messages`
+    );
     return persistedMessages;
   });
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
-  
+
   // Mobile-specific state for navigation
   const isMobile = useIsMobile();
   const { viewportHeight, isKeyboardOpen } = useViewportHeight();
@@ -74,74 +76,119 @@ const ChatApp: React.FC = () => {
     loadMore,
     error,
   } = useConversations();
-  
+
   // Function to get the latest message for a conversation from WebSocket messages
-  const getLatestWSMessageForConversation = (conversationId: string, isGroup: boolean): Message | undefined => {
-    console.log(`🔍 Getting latest WS message for ${isGroup ? 'group' : 'user'} ${conversationId}`);
+  const getLatestWSMessageForConversation = (
+    conversationId: string,
+    isGroup: boolean
+  ): Message | undefined => {
+    console.log(
+      `🔍 Getting latest WS message for ${
+        isGroup ? "group" : "user"
+      } ${conversationId}`
+    );
     console.log(`🔍 Total wsMessages: ${wsMessages.length}`);
-    
+
     const relevantMessages = wsMessages.filter((msg) => {
       if (isGroup) {
-        const isRelevant = msg.chatType === "GROUP" && msg.groupId === conversationId;
-        console.log(`🔍 Group message check: ${msg.id} - chatType: ${msg.chatType}, groupId: ${msg.groupId}, conversationId: ${conversationId}, relevant: ${isRelevant}`);
+        const isRelevant =
+          msg.chatType === "GROUP" && msg.groupId === conversationId;
+        console.log(
+          `🔍 Group message check: ${msg.id} - chatType: ${msg.chatType}, groupId: ${msg.groupId}, conversationId: ${conversationId}, relevant: ${isRelevant}`
+        );
         return isRelevant;
       } else {
-        const isRelevant = msg.chatType === "PRIVATE" && 
-               ((msg.senderId === currentUser.id && msg.recipientId === conversationId) ||
-                (msg.senderId === conversationId && msg.recipientId === currentUser.id));
+        const isRelevant =
+          msg.chatType === "PRIVATE" &&
+          ((msg.senderId === currentUser.id &&
+            msg.recipientId === conversationId) ||
+            (msg.senderId === conversationId &&
+              msg.recipientId === currentUser.id));
         return isRelevant;
       }
     });
-    
-    console.log(`🔍 Found ${relevantMessages.length} relevant messages for ${isGroup ? 'group' : 'user'} ${conversationId}`);
-    
+
+    console.log(
+      `🔍 Found ${relevantMessages.length} relevant messages for ${
+        isGroup ? "group" : "user"
+      } ${conversationId}`
+    );
+
     // Return the most recent message
-    const latest = relevantMessages.length > 0 
-      ? relevantMessages.sort((a, b) => 
-          new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
-        )[0]
-      : undefined;
-      
-    console.log(`🔍 Latest WS message for ${isGroup ? 'group' : 'user'} ${conversationId}:`, latest);
+    const latest =
+      relevantMessages.length > 0
+        ? relevantMessages.sort(
+            (a, b) =>
+              new Date(b.createdAt || "").getTime() -
+              new Date(a.createdAt || "").getTime()
+          )[0]
+        : undefined;
+
+    console.log(
+      `🔍 Latest WS message for ${
+        isGroup ? "group" : "user"
+      } ${conversationId}:`,
+      latest
+    );
     return latest;
   };
 
   // Enhanced conversations with latest WebSocket messages
   const enhancedConversations = useMemo(() => {
-    return conversations.map(conv => {
-      const latestWSMessage = getLatestWSMessageForConversation(conv.id, conv.isGroup);
-      
+    return conversations.map((conv) => {
+      const latestWSMessage = getLatestWSMessageForConversation(
+        conv.id,
+        conv.isGroup
+      );
+
       // If we have a WebSocket message, check if it's newer than the REST API message
       if (latestWSMessage && conv.lastMessage) {
-        const wsMessageTime = new Date(latestWSMessage.createdAt || "").getTime();
+        const wsMessageTime = new Date(
+          latestWSMessage.createdAt || ""
+        ).getTime();
         // Fix: Handle both string and potentially undefined createdAt for REST API messages
-        const restMessageTime = new Date(conv.lastMessage.createdAt || conv.lastMessage.timestamp || "").getTime();
-        
-        console.log(`Comparing messages for ${conv.isGroup ? 'group' : 'user'} ${conv.id}:`, {
-          wsMessageTime,
-          restMessageTime,
-          wsMessage: latestWSMessage,
-          restMessage: conv.lastMessage,
-          wsNewer: wsMessageTime > restMessageTime
-        });
-        
+        const restMessageTime = new Date(
+          conv.lastMessage.createdAt || conv.lastMessage.timestamp || ""
+        ).getTime();
+
+        console.log(
+          `Comparing messages for ${conv.isGroup ? "group" : "user"} ${
+            conv.id
+          }:`,
+          {
+            wsMessageTime,
+            restMessageTime,
+            wsMessage: latestWSMessage,
+            restMessage: conv.lastMessage,
+            wsNewer: wsMessageTime > restMessageTime,
+          }
+        );
+
         // Use WebSocket message if it's newer
         if (wsMessageTime > restMessageTime) {
-          console.log(`Using WebSocket message for ${conv.isGroup ? 'group' : 'user'} ${conv.id}`);
+          console.log(
+            `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+              conv.id
+            }`
+          );
           return {
             ...conv,
-            lastMessage: latestWSMessage
+            lastMessage: latestWSMessage,
           };
         }
       } else if (latestWSMessage && !conv.lastMessage) {
         // If there's no REST API message but we have a WebSocket message, use it
-        console.log(`Using WebSocket message for ${conv.isGroup ? 'group' : 'user'} ${conv.id} (no REST message)`);
+        console.log(
+          `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+            conv.id
+          } (no REST message)`
+        );
         return {
           ...conv,
-          lastMessage: latestWSMessage
+          lastMessage: latestWSMessage,
         };
       }
-      
+
       // Otherwise, use the original conversation (with REST API lastMessage)
       return conv;
     });
@@ -163,7 +210,6 @@ const ChatApp: React.FC = () => {
     }
   };
 
-
   // Update connection status periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -183,7 +229,7 @@ const ChatApp: React.FC = () => {
       try {
         const axios = (await import("axios")).default;
         let res;
-        
+
         if (selectedUser.isGroup) {
           // For groups, use group messages endpoint
           res = await axios.get(
@@ -195,7 +241,7 @@ const ChatApp: React.FC = () => {
             `${APP_CONFIG.API_BASE_URL}/api/users/${currentUser.id}/chats/${selectedUser.id}?page=0&size=50`
           );
         }
-        
+
         // Map API response to Message[] with timestamp as Date
         setMessages(
           (res.data.content || [])
@@ -209,7 +255,7 @@ const ChatApp: React.FC = () => {
             }))
         );
       } catch (err) {
-        console.error('Error fetching messages:', err);
+        console.error("Error fetching messages:", err);
         setMessages([]);
       } finally {
         setLoadingMessages(false);
@@ -233,11 +279,14 @@ const ChatApp: React.FC = () => {
 
     const handleConnect = async () => {
       console.log("WebSocket connected successfully in App component");
-      
+
       try {
         // Set up global private message subscription once when connected
-        console.log("Setting up global private message subscription for user:", currentUser.id);
-        
+        console.log(
+          "Setting up global private message subscription for user:",
+          currentUser.id
+        );
+
         globalPrivateSubscription = await subscribeToChat(
           "", // chatId not needed for private messages
           (msg) => {
@@ -253,11 +302,10 @@ const ChatApp: React.FC = () => {
             });
 
             // Check if private message is relevant to current user
-            const isPrivateForCurrentUser = 
-              msg.chatType === "PRIVATE" && (
-                msg.recipientId === currentUser.id || 
-                msg.senderId === currentUser.id
-              );
+            const isPrivateForCurrentUser =
+              msg.chatType === "PRIVATE" &&
+              (msg.recipientId === currentUser.id ||
+                msg.senderId === currentUser.id);
 
             if (!isPrivateForCurrentUser) {
               console.log("Private message not for current user, ignoring");
@@ -265,7 +313,7 @@ const ChatApp: React.FC = () => {
             }
 
             console.log("✅ Private message is for current user, adding to UI");
-            
+
             // Add message to wsMessages
             setWsMessages((prev) => {
               // Check for duplicates
@@ -275,16 +323,22 @@ const ChatApp: React.FC = () => {
                 }
 
                 const timeDiff = Math.abs(
-                  new Date(existingMsg.createdAt ?? new Date().toISOString()).getTime() -
-                  new Date(msg.createdAt || new Date().toISOString()).getTime()
+                  new Date(
+                    existingMsg.createdAt ?? new Date().toISOString()
+                  ).getTime() -
+                    new Date(
+                      msg.createdAt || new Date().toISOString()
+                    ).getTime()
                 );
 
                 // For file messages, also check fileAttachment
-                if (msg.type === 'FILE' && existingMsg.type === 'FILE') {
+                if (msg.type === "FILE" && existingMsg.type === "FILE") {
                   return (
                     existingMsg.senderId === msg.senderId &&
-                    existingMsg.fileAttachment?.originalName === msg.fileAttachment?.originalName &&
-                    existingMsg.fileAttachment?.fileSize === msg.fileAttachment?.fileSize &&
+                    existingMsg.fileAttachment?.originalName ===
+                      msg.fileAttachment?.originalName &&
+                    existingMsg.fileAttachment?.fileSize ===
+                      msg.fileAttachment?.fileSize &&
                     timeDiff < 2000 // 2 seconds tolerance
                   );
                 }
@@ -315,9 +369,14 @@ const ChatApp: React.FC = () => {
           false // false = private messages
         );
 
-        console.log("Global private message subscription established successfully");
+        console.log(
+          "Global private message subscription established successfully"
+        );
       } catch (error) {
-        console.error("Failed to establish global private subscription:", error);
+        console.error(
+          "Failed to establish global private subscription:",
+          error
+        );
       }
     };
 
@@ -358,26 +417,32 @@ const ChatApp: React.FC = () => {
             (msg) => {
               if (msg.chatType === "GROUP" && msg.groupId === group.id) {
                 console.log(`🔥 RECEIVED GROUP MESSAGE for ${group.id}:`, msg);
-                
+
                 setWsMessages((prev) => {
                   const isDuplicate = prev.some((existingMsg) => {
                     if (msg.id && existingMsg.id === msg.id) return true;
                     const timeDiff = Math.abs(
-                      new Date(existingMsg.createdAt ?? new Date().toISOString()).getTime() -
-                        new Date(msg.createdAt || new Date().toISOString()).getTime()
+                      new Date(
+                        existingMsg.createdAt ?? new Date().toISOString()
+                      ).getTime() -
+                        new Date(
+                          msg.createdAt || new Date().toISOString()
+                        ).getTime()
                     );
-                    
+
                     // For file messages, also check fileAttachment
-                    if (msg.type === 'FILE' && existingMsg.type === 'FILE') {
+                    if (msg.type === "FILE" && existingMsg.type === "FILE") {
                       return (
                         existingMsg.senderId === msg.senderId &&
-                        existingMsg.fileAttachment?.originalName === msg.fileAttachment?.originalName &&
-                        existingMsg.fileAttachment?.fileSize === msg.fileAttachment?.fileSize &&
+                        existingMsg.fileAttachment?.originalName ===
+                          msg.fileAttachment?.originalName &&
+                        existingMsg.fileAttachment?.fileSize ===
+                          msg.fileAttachment?.fileSize &&
                         existingMsg.groupId === msg.groupId &&
                         timeDiff < 2000
                       );
                     }
-                    
+
                     return (
                       existingMsg.senderId === msg.senderId &&
                       existingMsg.content === msg.content &&
@@ -386,22 +451,28 @@ const ChatApp: React.FC = () => {
                       timeDiff < 2000
                     );
                   });
-                  
+
                   if (isDuplicate) {
                     console.log("Duplicate group message detected, skipping");
                     return prev;
                   }
-                  
+
                   const newMessage = {
                     ...msg,
                     id: msg.id || generateUUID(),
                     createdAt: msg.createdAt || new Date().toISOString(),
                   };
-                  
-                  console.log("Adding new group message to wsMessages:", newMessage);
+
+                  console.log(
+                    "Adding new group message to wsMessages:",
+                    newMessage
+                  );
                   console.log("Current wsMessages length:", prev.length);
                   const updatedMessages = [...prev, newMessage];
-                  console.log("Updated wsMessages length:", updatedMessages.length);
+                  console.log(
+                    "Updated wsMessages length:",
+                    updatedMessages.length
+                  );
                   return updatedMessages;
                 });
               }
@@ -430,22 +501,26 @@ const ChatApp: React.FC = () => {
 
   // Clear messages when selectedUser changes and update filtered messages
   useEffect(() => {
-    console.log(`Selected user changed to: ${selectedUser?.id || 'none'}`);
-    
+    console.log(`Selected user changed to: ${selectedUser?.id || "none"}`);
+
     // Clear old WebSocket messages to prevent memory bloat
     // Keep only messages relevant to all potential conversations
-    setWsMessages(prev => prev.filter(msg => {
-      // Keep messages where current user is involved (private or group)
-      return msg.senderId === currentUser.id || 
-             msg.recipientId === currentUser.id ||
-             (msg.chatType === "GROUP" && msg.groupId); // Keep all group messages for now
-    }));
+    setWsMessages((prev) =>
+      prev.filter((msg) => {
+        // Keep messages where current user is involved (private or group)
+        return (
+          msg.senderId === currentUser.id ||
+          msg.recipientId === currentUser.id ||
+          (msg.chatType === "GROUP" && msg.groupId)
+        ); // Keep all group messages for now
+      })
+    );
   }, [selectedUser, currentUser.id]);
 
   // Memoize filtered messages for performance
   const filteredWsMessages = useMemo(() => {
     if (!selectedUser) return [];
-    
+
     return wsMessages.filter((msg) => {
       if (selectedUser.isGroup) {
         // For groups, show messages with matching groupId
@@ -453,8 +528,10 @@ const ChatApp: React.FC = () => {
       } else {
         // For private chats, show messages between current user and selected user
         const isRelevantMessage =
-          (msg.senderId === currentUser.id && msg.recipientId === selectedUser.id) ||
-          (msg.senderId === selectedUser.id && msg.recipientId === currentUser.id);
+          (msg.senderId === currentUser.id &&
+            msg.recipientId === selectedUser.id) ||
+          (msg.senderId === selectedUser.id &&
+            msg.recipientId === currentUser.id);
         return isRelevantMessage;
       }
     });
@@ -475,19 +552,20 @@ const ChatApp: React.FC = () => {
   }
 
   return (
-    <div 
-      className={`bg-gray-100 overflow-hidden h-[100dvh] ${isMobile ? '  mobile-layout' : ''}`}
-
+    <div
+      className={`bg-gray-100 overflow-hidden h-[100dvh] ${
+        isMobile ? "  mobile-layout" : ""
+      }`}
     >
       {isMobile ? (
         // Mobile Layout with sliding animation and fixed positioning
-        <div 
-          className="relative w-full h-full"
-        >
+        <div className="relative w-full h-full">
           {/* User List - slides left when chat is open */}
-          <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-            showChatView ? '-translate-x-full' : 'translate-x-0'
-          }`}>
+          <div
+            className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+              showChatView ? "-translate-x-full" : "translate-x-0"
+            }`}
+          >
             <Suspense fallback={<LoadingSpinner />}>
               <UserList
                 conversations={enhancedConversations}
@@ -504,9 +582,11 @@ const ChatApp: React.FC = () => {
 
           {/* Chat Window - slides in from right when chat is selected */}
           {selectedUser && (
-            <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-              showChatView ? 'translate-x-0' : 'translate-x-full'
-            }`}>
+            <div
+              className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                showChatView ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
               <Suspense fallback={<LoadingSpinner />}>
                 <ChatWindow
                   selectedUser={selectedUser}
@@ -566,14 +646,18 @@ function App() {
 
 // App content component that handles login state
 const AppContent: React.FC = () => {
-  const { isLoggedIn, setCurrentUserId } = useUser();
+  const { isLoggedIn, setUserData } = useUser();
 
-  const handleUserSelect = (userId: string) => {
-    setCurrentUserId(userId);
+  const handleAuthSuccess = (
+    mainUserId: number,
+    collabUserId: string,
+    userName: string
+  ) => {
+    setUserData(mainUserId, collabUserId, userName);
   };
 
   if (!isLoggedIn) {
-    return <Login onUserSelect={handleUserSelect} />;
+    return <AuthPage onAuthSuccess={handleAuthSuccess} />;
   }
 
   return <ChatApp />;

@@ -2,17 +2,58 @@
 
 A modern, WhatsApp-inspired messaging application built with React, TypeScript, and Tailwind CSS with real-time WebSocket communication.
 
+## ⚠️ Important: Authentication Setup Required
+
+This messaging app now integrates with the main app's authentication system. Before running, you **MUST**:
+
+1. **Start the main app backend** (port 8080) - Provides authentication
+2. **Start the collab service backend** (port 8090) - Provides messaging
+3. **Have a user account** in both systems with matching user IDs
+
+See [docs/STARTUP_TROUBLESHOOTING.md](docs/STARTUP_TROUBLESHOOTING.md) for detailed setup instructions.
+
+## Quick Start
+
+```bash
+# 1. Ensure both backends are running
+# Main app: http://localhost:8080
+# Collab service: http://localhost:8090
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment (already set up for local dev)
+# Check .env.local for API URLs
+
+# 4. Start the app
+npm start
+
+# 5. Open http://localhost:3000 and login with your credentials
+```
+
 ## Features
 
 - 🎨 Modern, responsive UI inspired by WhatsApp
 - 💬 Real-time messaging with WebSocket support
 - 👥 User list with online status indicators
+- 🔐 **NEW**: Integrated authentication with main app
+- 🔄 **NEW**: Automatic user mapping between services
 - 📱 Mobile-first responsive design
 - ⚡ Fast and smooth animations
 - 🔔 Message status indicators (sent, delivered, read)
 - 📅 Smart date separators
 - 🎭 Emoji support
-- 🌐 Environment-based configuration for different deployments
+- 📁 File attachments
+- 👥 Group chat support
+
+## Authentication Architecture
+
+This app uses a **dual user ID system**:
+
+- **Main App User ID**: For authentication (from main app's user service)
+- **Collab Service User ID**: For messaging operations (from collab service)
+
+The mapping is automatic and transparent to users. See [docs/AUTHENTICATION_INTEGRATION.md](docs/AUTHENTICATION_INTEGRATION.md) for details.
 
 ## Tech Stack
 
@@ -20,8 +61,9 @@ A modern, WhatsApp-inspired messaging application built with React, TypeScript, 
 - **Styling**: Tailwind CSS with custom WhatsApp-inspired theme
 - **Real-time Communication**: WebSocket with STOMP protocol
 - **HTTP Client**: Axios for API calls
+- **Authentication**: Integrated with main app's auth service
 - **Build Tool**: Create React App
-- **Package Manager**: pnpm
+- **Package Manager**: npm/pnpm
 - **Code Quality**: ESLint, TypeScript strict mode
 
 ## Project Structure
@@ -31,9 +73,17 @@ src/
 ├── components/           # Reusable UI components
 │   ├── Layout/          # Layout components (Header, Sidebar, etc.)
 │   ├── UI/              # Basic UI components (Button, Input, Avatar)
+│   ├── AuthPage.tsx     # ✨ NEW: Login/Register page
 │   ├── ChatWindow.tsx   # Main chat interface
 │   ├── MessageItem.tsx  # Individual message component
 │   └── UserList.tsx     # User sidebar component
+├── services/            # API services
+│   ├── authService.ts   # ✨ NEW: Main app authentication
+│   ├── userMappingService.ts  # ✨ NEW: User ID mapping
+│   ├── ws.ts            # WebSocket service
+│   └── api.ts           # Service interfaces
+├── context/             # React Context
+│   └── UserContext.tsx  # ✨ UPDATED: Dual user ID management
 ├── hooks/               # Custom React hooks
 │   ├── useMessages.ts   # Message state management
 │   └── useUsers.ts      # User state management
@@ -42,14 +92,14 @@ src/
 ├── utils/               # Utility functions
 │   ├── dateUtils.ts     # Date formatting utilities
 │   └── helpers.ts       # General helper functions
-├── services/            # API services (ready for backend integration)
-│   └── api.ts           # Service interfaces and mock implementations
-├── data/                # Mock data for development
-│   └── mockData.ts      # Sample users and messages
 ├── constants/           # App configuration and constants
 │   └── index.ts         # App config, routes, etc.
-└── App.tsx              # Main application component
-```
+└── docs/                # ✨ NEW: Documentation
+    ├── AUTHENTICATION_INTEGRATION.md
+    ├── AUTH_UPDATE_SUMMARY.md
+    ├── QUICK_START.md
+    └── STARTUP_TROUBLESHOOTING.md
+````
 
 ## Getting Started
 
