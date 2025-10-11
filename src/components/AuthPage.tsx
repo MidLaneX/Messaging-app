@@ -90,7 +90,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
     try {
       let authResponse;
-
+      
       if (isLogin) {
         // Login
         authResponse = await authService.login({ email, password });
@@ -147,7 +147,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           "2. Backend services are running\n" +
           "3. CORS is properly configured";
       }
-
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
