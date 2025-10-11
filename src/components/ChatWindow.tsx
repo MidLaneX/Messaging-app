@@ -409,34 +409,55 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Handle attachment menu actions
   const handleAttachmentAction = useCallback((action: string) => {
+    console.log("Attachment action triggered:", action);
     if (fileInputRef.current) {
       switch (action) {
         case "image":
+          console.log("Setting up image selection");
           fileInputRef.current.accept = "image/*,video/*";
           fileInputRef.current.removeAttribute("capture");
           fileInputRef.current.click();
           break;
         case "document":
+          console.log("Setting up document selection");
           fileInputRef.current.accept =
             ".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx";
           fileInputRef.current.removeAttribute("capture");
           fileInputRef.current.click();
           break;
         case "camera":
+          console.log("Setting up camera capture");
           // Set accept to image and add capture attribute for camera
           fileInputRef.current.accept = "image/*";
-          fileInputRef.current.setAttribute("capture", "environment");
+          
+          // Check if device supports camera capture
+          const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          console.log("Is mobile device:", isMobileDevice);
+          
+          if (isMobileDevice) {
+            // For mobile devices, use camera capture
+            fileInputRef.current.setAttribute("capture", "environment");
+            console.log("Camera capture attribute added");
+          }
+          
+          fileInputRef.current.setAttribute("multiple", "false");
           fileInputRef.current.click();
+          
           // Reset after click to allow gallery access next time
           setTimeout(() => {
             if (fileInputRef.current) {
               fileInputRef.current.removeAttribute("capture");
+              fileInputRef.current.removeAttribute("multiple");
+              console.log("Camera attributes reset");
             }
           }, 100);
           break;
         default:
+          console.log("Unknown action:", action);
           break;
       }
+    } else {
+      console.error("File input ref is not available");
     }
     setShowAttachmentMenu(false);
   }, []);
@@ -1139,13 +1160,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         />
 
         <div
-          className={`${isMobile ? "px-3 py-2" : "px-6 py-4"} overflow-hidden`}
+          className={`${isMobile ? "px-3 py-2" : "px-6 py-4"} relative`}
         >
           <form
             onSubmit={handleSendMessage}
             className={`flex items-center ${
               isMobile ? "space-x-1" : "space-x-3"
-            } overflow-hidden`}
+            } overflow-visible relative`}
           >
             {/* Hidden file input */}
             <input
@@ -1156,13 +1177,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               className="hidden"
             />
 
-            <div className="relative  flex-shrink-0" ref={attachmentMenuRef}>
+            <div className="relative flex-shrink-0 z-10" ref={attachmentMenuRef}>
               <button
                 type="button"
-                onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                onClick={() => {
+                  console.log("Attachment button clicked, current state:", showAttachmentMenu);
+                  setShowAttachmentMenu(!showAttachmentMenu);
+                }}
                 className={`${
                   isMobile ? "p-1.5" : "p-3"
-                } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100 flex items-center justify-center`}
+                } text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100 flex items-center justify-center ${
+                  showAttachmentMenu ? 'bg-gray-100 text-gray-700' : ''
+                }`}
                 title="Attach file"
                 aria-label="Attach file"
               >

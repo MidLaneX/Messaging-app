@@ -15,6 +15,8 @@ const FileAttachmentMenu: React.FC<FileAttachmentMenuProps> = ({
   onSelectDocument,
   onSelectCamera
 }) => {
+  console.log("FileAttachmentMenu rendered, isVisible:", isVisible);
+  
   if (!isVisible) return null;
 
   const attachmentOptions = [
@@ -55,7 +57,7 @@ const FileAttachmentMenu: React.FC<FileAttachmentMenuProps> = ({
   ];
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-2">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-2 backdrop-blur-sm" style={{ boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)' }}>
       <div className="px-3 py-2 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium text-gray-900">Attach</h4>
