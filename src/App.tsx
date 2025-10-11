@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import "./App.css";
 import AuthPage from "./components/AuthPage";
 import { UserProvider, useUser } from "./context/UserContext";
-import { useConversations } from "./hooks";
+import { useConversations, ConversationItem } from "./hooks";
 import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
 import { generateUUID } from "./utils";
 import { messagePersistence } from "./services/messagePersistence";
+import { selectedConversationPersistence } from "./services/selectedConversationPersistence";
+import { conversationPersistence } from "./services/conversationPersistence";
 import {
   connectWebSocket,
   disconnectWebSocket,
@@ -32,7 +34,10 @@ const LoadingSpinner = () => (
 // Main chat application component
 const ChatApp: React.FC = () => {
   const { currentUserId, currentUserName, isLoggedIn } = useUser();
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(() => {
+    // Try to restore selected conversation from localStorage
+    return selectedConversationPersistence.loadSelectedConversation();
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [wsMessages, setWsMessages] = useState<Message[]>(() => {
@@ -135,7 +140,7 @@ const ChatApp: React.FC = () => {
 
   // Enhanced conversations with latest WebSocket messages
   const enhancedConversations = useMemo(() => {
-    return conversations.map((conv) => {
+    return conversations.map((conv: ConversationItem) => {
       const latestWSMessage = getLatestWSMessageForConversation(
         conv.id,
         conv.isGroup
@@ -194,9 +199,53 @@ const ChatApp: React.FC = () => {
     });
   }, [conversations, wsMessages, currentUser.id]);
 
+  // Helper function to update conversation cache when new messages arrive
+  const updateConversationWithNewMessage = useCallback((message: Message) => {
+    const cachedConversations = conversationPersistence.loadConversations();
+    if (!cachedConversations) return;
+
+    let conversationId: string;
+    let isGroup: boolean;
+
+    if (message.chatType === 'GROUP') {
+      conversationId = message.groupId || '';
+      isGroup = true;
+    } else {
+      // For private messages, determine the other user's ID
+      conversationId = message.senderId === currentUser.id ? 
+        message.recipientId || '' : message.senderId || '';
+      isGroup = false;
+    }
+
+    if (!conversationId) return;
+
+    // Find and update the conversation in cache
+    const updatedConversations = cachedConversations.map(conv => {
+      if (conv.id === conversationId && conv.isGroup === isGroup) {
+        return {
+          ...conv,
+          lastMessage: message,
+          unreadCount: message.senderId !== currentUser.id ? 
+            (conv.unreadCount || 0) + 1 : conv.unreadCount
+        };
+      }
+      return conv;
+    });
+
+    // Sort by last message time and save
+    updatedConversations.sort((a, b) => {
+      const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
+      const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
+      return bTime - aTime;
+    });
+
+    conversationPersistence.saveConversations(updatedConversations);
+  }, [currentUser.id]);
+
   // Mobile-friendly user selection handler
   const handleUserSelect = (user: User) => {
     setSelectedUser(user);
+    selectedConversationPersistence.saveSelectedConversation(user);
     if (isMobile) {
       setShowChatView(true);
     }
@@ -207,6 +256,7 @@ const ChatApp: React.FC = () => {
     if (isMobile) {
       setShowChatView(false);
       setSelectedUser(null);
+      selectedConversationPersistence.clearSelectedConversation();
     }
   };
 
@@ -363,6 +413,10 @@ const ChatApp: React.FC = () => {
               };
 
               console.log("Adding new private message to UI:", newMessage);
+              
+              // Update conversation cache with new message
+              updateConversationWithNewMessage(newMessage);
+              
               return [...prev, newMessage];
             });
           },
@@ -406,7 +460,7 @@ const ChatApp: React.FC = () => {
 
   // Global group subscriptions for all groups to update last messages
   useEffect(() => {
-    const groupConversations = conversations.filter((conv) => conv.isGroup);
+    const groupConversations = conversations.filter((conv: ConversationItem) => conv.isGroup);
     const subscriptions: any[] = [];
 
     const setupGlobalGroupSubscriptions = async () => {
@@ -468,6 +522,10 @@ const ChatApp: React.FC = () => {
                     newMessage
                   );
                   console.log("Current wsMessages length:", prev.length);
+                  
+                  // Update conversation cache with new message
+                  updateConversationWithNewMessage(newMessage);
+                  
                   const updatedMessages = [...prev, newMessage];
                   console.log(
                     "Updated wsMessages length:",

@@ -1,25 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { recentUsersService, RecentUser, fetchLastMessageForUser } from '../services/recentUsersService';
 import { groupService } from '../services/groupService';
+import { conversationPersistence, ConversationItem } from '../services/conversationPersistence';
 import { APP_CONFIG } from '../constants';
 import { ChatRoom } from '../types';
 
-// Combined conversation item that can be either a user or group
-export interface ConversationItem {
-  id: string;
-  name: string;
-  avatar?: string;
-  lastMessage?: any;
-  unreadCount: number;
-  lastSeen?: Date;
-  isOnline: boolean;
-  isGroup: boolean;
-  // For groups
-  participants?: string[];
-  memberCount?: number;
-  // For users
-  userId?: string;
-}
+// Re-export ConversationItem for backward compatibility
+export type { ConversationItem };
 
 interface UseConversationsReturn {
   conversations: ConversationItem[];
@@ -70,74 +57,29 @@ export const useConversations = (): UseConversationsReturn => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Fetch both recent users and groups in parallel
-      console.log('Loading initial conversations for user:', APP_CONFIG.CURRENT_USER_ID);
-      const usersPromise = recentUsersService.getInitialRecentUsers(APP_CONFIG.CURRENT_USER_ID);
-      const groupsPromise = groupService.getUserGroups(APP_CONFIG.CURRENT_USER_ID)
-        .then(groups => {
-          console.log(`Fetched ${groups.length} groups for user ${APP_CONFIG.CURRENT_USER_ID}`);
-          return groups;
-        })
-        .catch(err => {
-          console.error('Error fetching groups in useConversations:', err);
-          return [] as import('../types').ChatRoom[];
-        });
-      const [usersResponse, groupsResponse] = await Promise.all([usersPromise, groupsPromise]);
-      
-      let users = usersResponse?.users || [];
-      let groups = Array.isArray(groupsResponse) ? groupsResponse : [];
-      
-      // If users don't have last messages, try to fetch them
-      if (users.length > 0 && users.some(user => !user.lastMessage)) {
-        console.log('Fetching last messages for users without them...');
-        const usersWithMessages = await Promise.all(
-          users.map(async (user) => {
-            if (!user.lastMessage) {
-              const lastMessage = await fetchLastMessageForUser(APP_CONFIG.CURRENT_USER_ID, user.id);
-              return { ...user, lastMessage };
-            }
-            return user;
-          })
-        );
-        users = usersWithMessages;
+
+      // First, try to load from cache if available and not expired
+      const cachedConversations = conversationPersistence.loadConversations();
+      if (cachedConversations && cachedConversations.length > 0) {
+        setConversations(cachedConversations);
+        setLoading(false);
+        console.log('📱 Using cached conversations');
+        return;
       }
+
+      // Load fresh data from API
+      console.log('🔄 Loading conversations from API...');
+      const usersResponse = await recentUsersService.getInitialRecentUsers(APP_CONFIG.CURRENT_USER_ID);
+      const groupsResponse = await groupService.getUserGroups(APP_CONFIG.CURRENT_USER_ID).catch(() => []);
       
-      // If groups don't have last messages, try to fetch them
-      if (groups.length > 0 && groups.some(group => !group.lastMessage)) {
-        console.log('Fetching last messages for groups without them...');
-        const { fetchLastMessageForGroup } = await import('../services/recentUsersService');
-        const groupsWithMessages = await Promise.all(
-          groups.map(async (group) => {
-            if (!group.lastMessage) {
-              const lastMessage = await fetchLastMessageForGroup(group.id);
-              return { ...group, lastMessage };
-            }
-            return group;
-          })
-        );
-        groups = groupsWithMessages;
-      }
+      const users = usersResponse?.users || [];
+      const groups = Array.isArray(groupsResponse) ? groupsResponse : [];
       
       // Convert to conversation items
       const userConversations = users.map(convertUserToConversation);
       const groupConversations = groups.map(convertGroupToConversation);
       
-      console.log('🔍 Converted user conversations:', userConversations.map(c => ({
-        id: c.id,
-        name: c.name,
-        lastMessage: c.lastMessage,
-        isGroup: c.isGroup
-      })));
-      
-      console.log('🔍 Converted group conversations:', groupConversations.map(c => ({
-        id: c.id,
-        name: c.name,
-        lastMessage: c.lastMessage,
-        isGroup: c.isGroup
-      })));
-      
-      // Combine and sort by last message timestamp (most recent first)
+      // Combine and sort by last message timestamp
       const allConversations = [...userConversations, ...groupConversations];
       allConversations.sort((a, b) => {
         const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
@@ -146,13 +88,16 @@ export const useConversations = (): UseConversationsReturn => {
       });
       
       setConversations(allConversations);
-      setHasMore(usersResponse?.hasMore || false); // Only users have pagination for now
+      setHasMore(usersResponse?.hasMore || false);
       setCurrentPage(usersResponse?.currentPage || 1);
+
+      // Save to cache
+      conversationPersistence.saveConversations(allConversations);
+
     } catch (err) {
       console.error('Error loading conversations:', err);
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
       setConversations([]);
-      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -178,11 +123,15 @@ export const useConversations = (): UseConversationsReturn => {
       setConversations(prev => {
         const combined = [...(prev || []), ...newUserConversations];
         // Re-sort after adding new items
-        return combined.sort((a, b) => {
+        const sorted = combined.sort((a, b) => {
           const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : -1;
           const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : -1;
           return bTime - aTime;
         });
+
+        // Update cache with new conversations
+        conversationPersistence.saveConversations(sorted);
+        return sorted;
       });
       
       setHasMore(response?.hasMore || false);
@@ -196,7 +145,7 @@ export const useConversations = (): UseConversationsReturn => {
   }, [currentPage, hasMore, loadingMore]);
 
   const refresh = useCallback(async () => {
-    setCurrentPage(1);
+    conversationPersistence.clearConversations();
     await loadInitial();
   }, [loadInitial]);
 
@@ -206,7 +155,7 @@ export const useConversations = (): UseConversationsReturn => {
 
   return {
     conversations,
-    loading: loading || loadingMore,
+    loading,
     hasMore,
     error,
     loadMore,
