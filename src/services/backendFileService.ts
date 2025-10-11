@@ -64,24 +64,24 @@ class BackendFileService {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
-        userId: userId
+        userId: userId,
       });
 
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', userId);
+      formData.append("file", file);
+      formData.append("userId", userId);
 
       const xhr = new XMLHttpRequest();
 
       return new Promise<UploadResult>((resolve) => {
         // Set up progress tracking
         if (onProgress) {
-          xhr.upload.addEventListener('progress', (event) => {
+          xhr.upload.addEventListener("progress", (event) => {
             if (event.lengthComputable) {
               const progress: UploadProgress = {
                 loaded: event.loaded,
                 total: event.total,
-                percentage: Math.round((event.loaded / event.total) * 100)
+                percentage: Math.round((event.loaded / event.total) * 100),
               };
               onProgress(progress);
             }
@@ -89,11 +89,11 @@ class BackendFileService {
         }
 
         // Handle completion
-        xhr.addEventListener('load', () => {
+        xhr.addEventListener("load", () => {
           try {
             if (xhr.status >= 200 && xhr.status < 300) {
               const response: FileUploadResponse = JSON.parse(xhr.responseText);
-              
+
               if (response.success && response.file) {
                 console.log("✅ Backend upload successful:", response.file);
                 resolve({
@@ -102,50 +102,53 @@ class BackendFileService {
                   fileName: response.file.storedFilename,
                   fileSize: response.file.fileSize,
                   mimeType: response.file.contentType,
-                  fileId: response.file.id
+                  fileId: response.file.id,
                 });
               } else {
                 console.error("❌ Backend upload failed:", response.error);
                 resolve({
                   success: false,
-                  error: response.error || 'Upload failed'
+                  error: response.error || "Upload failed",
                 });
               }
             } else {
-              console.error('❌ Backend upload failed:', xhr.status, xhr.statusText);
+              console.error(
+                "❌ Backend upload failed:",
+                xhr.status,
+                xhr.statusText
+              );
               resolve({
                 success: false,
-                error: `Upload failed: ${xhr.status} ${xhr.statusText}`
+                error: `Upload failed: ${xhr.status} ${xhr.statusText}`,
               });
             }
           } catch (e) {
-            console.error('❌ Failed to parse upload response:', e);
+            console.error("❌ Failed to parse upload response:", e);
             resolve({
               success: false,
-              error: 'Failed to parse response'
+              error: "Failed to parse response",
             });
           }
         });
 
         // Handle errors
-        xhr.addEventListener('error', () => {
-          console.error('❌ Network error during upload');
+        xhr.addEventListener("error", () => {
+          console.error("❌ Network error during upload");
           resolve({
             success: false,
-            error: 'Network error during upload'
+            error: "Network error during upload",
           });
         });
 
         // Send the request
-        xhr.open('POST', `${this.baseUrl}/api/files/upload`, true);
+        xhr.open("POST", `${this.baseUrl}/api/files/upload`, true);
         xhr.send(formData);
       });
-
     } catch (error) {
       console.error("❌ Backend file upload failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Upload failed',
+        error: error instanceof Error ? error.message : "Upload failed",
       };
     }
   }
@@ -153,14 +156,17 @@ class BackendFileService {
   /**
    * Get file metadata
    */
-  async getFileMetadata(fileId: string, userId: string): Promise<FileMetadata | null> {
+  async getFileMetadata(
+    fileId: string,
+    userId: string
+  ): Promise<FileMetadata | null> {
     try {
       const response = await fetch(
         `${this.baseUrl}/api/files/metadata/${fileId}?userId=${userId}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -168,11 +174,11 @@ class BackendFileService {
       if (response.ok) {
         return await response.json();
       } else {
-        console.error('Failed to get file metadata:', response.status);
+        console.error("Failed to get file metadata:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error getting file metadata:', error);
+      console.error("Error getting file metadata:", error);
       return null;
     }
   }
@@ -186,26 +192,27 @@ class BackendFileService {
 
   /**
    * Generate view URL for file (inline viewing)
+   * Uses the download endpoint but for inline display
    */
   getViewUrl(fileId: string, userId: string): string {
-    return `${this.baseUrl}/api/files/view/${fileId}?userId=${userId}`;
+    return `${this.baseUrl}/api/files/download/${fileId}?userId=${userId}&inline=true`;
   }
 
   /**
    * Get presigned download URL
    */
   async getPresignedDownloadUrl(
-    fileId: string, 
-    userId: string, 
+    fileId: string,
+    userId: string,
     expirySeconds: number = 3600
   ): Promise<string | null> {
     try {
       const response = await fetch(
         `${this.baseUrl}/api/files/presigned-url/${fileId}?userId=${userId}&expirySeconds=${expirySeconds}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -214,11 +221,11 @@ class BackendFileService {
         const data = await response.json();
         return data.downloadUrl;
       } else {
-        console.error('Failed to get presigned URL:', response.status);
+        console.error("Failed to get presigned URL:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error getting presigned URL:', error);
+      console.error("Error getting presigned URL:", error);
       return null;
     }
   }
@@ -226,20 +233,23 @@ class BackendFileService {
   /**
    * Download file as blob
    */
-  async downloadFileAsBlob(fileId: string, userId: string): Promise<Blob | null> {
+  async downloadFileAsBlob(
+    fileId: string,
+    userId: string
+  ): Promise<Blob | null> {
     try {
       const response = await fetch(this.getDownloadUrl(fileId, userId), {
-        method: 'GET',
+        method: "GET",
       });
 
       if (response.ok) {
         return await response.blob();
       } else {
-        console.error('Failed to download file:', response.status);
+        console.error("Failed to download file:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error("Error downloading file:", error);
       return null;
     }
   }
@@ -252,9 +262,9 @@ class BackendFileService {
       const response = await fetch(
         `${this.baseUrl}/api/files/${fileId}?userId=${userId}`,
         {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -263,11 +273,11 @@ class BackendFileService {
         const data = await response.json();
         return data.success;
       } else {
-        console.error('Failed to delete file:', response.status);
+        console.error("Failed to delete file:", response.status);
         return false;
       }
     } catch (error) {
-      console.error('Error deleting file:', error);
+      console.error("Error deleting file:", error);
       return false;
     }
   }
@@ -276,17 +286,21 @@ class BackendFileService {
    * Get user's files
    */
   async getUserFiles(
-    userId: string, 
-    page: number = 0, 
+    userId: string,
+    page: number = 0,
     size: number = 20
-  ): Promise<{ content: FileMetadata[]; totalPages: number; totalElements: number } | null> {
+  ): Promise<{
+    content: FileMetadata[];
+    totalPages: number;
+    totalElements: number;
+  } | null> {
     try {
       const response = await fetch(
         `${this.baseUrl}/api/files/user/${userId}?requestingUserId=${userId}&page=${page}&size=${size}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -294,11 +308,11 @@ class BackendFileService {
       if (response.ok) {
         return await response.json();
       } else {
-        console.error('Failed to get user files:', response.status);
+        console.error("Failed to get user files:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error getting user files:', error);
+      console.error("Error getting user files:", error);
       return null;
     }
   }
@@ -307,17 +321,21 @@ class BackendFileService {
    * Get files accessible by user
    */
   async getAccessibleFiles(
-    userId: string, 
-    page: number = 0, 
+    userId: string,
+    page: number = 0,
     size: number = 20
-  ): Promise<{ content: FileMetadata[]; totalPages: number; totalElements: number } | null> {
+  ): Promise<{
+    content: FileMetadata[];
+    totalPages: number;
+    totalElements: number;
+  } | null> {
     try {
       const response = await fetch(
         `${this.baseUrl}/api/files/accessible?userId=${userId}&page=${page}&size=${size}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -325,11 +343,11 @@ class BackendFileService {
       if (response.ok) {
         return await response.json();
       } else {
-        console.error('Failed to get accessible files:', response.status);
+        console.error("Failed to get accessible files:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error getting accessible files:', error);
+      console.error("Error getting accessible files:", error);
       return null;
     }
   }
@@ -337,14 +355,20 @@ class BackendFileService {
   /**
    * Get user's storage statistics
    */
-  async getStorageStats(userId: string): Promise<{ fileCount: number; totalSizeBytes: number; totalSizeMB: number } | null> {
+  async getStorageStats(
+    userId: string
+  ): Promise<{
+    fileCount: number;
+    totalSizeBytes: number;
+    totalSizeMB: number;
+  } | null> {
     try {
       const response = await fetch(
         `${this.baseUrl}/api/files/stats/${userId}?requestingUserId=${userId}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -352,11 +376,11 @@ class BackendFileService {
       if (response.ok) {
         return await response.json();
       } else {
-        console.error('Failed to get storage stats:', response.status);
+        console.error("Failed to get storage stats:", response.status);
         return null;
       }
     } catch (error) {
-      console.error('Error getting storage stats:', error);
+      console.error("Error getting storage stats:", error);
       return null;
     }
   }
@@ -367,11 +391,11 @@ class BackendFileService {
   async isServiceAvailable(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/files/health`, {
-        method: 'GET',
+        method: "GET",
       });
       return response.ok;
     } catch (error) {
-      console.error('Backend file service not available:', error);
+      console.error("Backend file service not available:", error);
       return false;
     }
   }

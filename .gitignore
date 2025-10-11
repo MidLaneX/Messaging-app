@@ -7,7 +7,7 @@
 /.pnp
 .pnp.js
 deploy.sh
-
+pnpm-lock.yaml
 # Environment files with credentials - NEVER COMMIT THESE
 .env
 .env.local

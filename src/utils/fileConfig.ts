@@ -24,7 +24,7 @@ export const validateFile = (file: File): { valid: boolean; error?: string } => 
     // Audio
     'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a',
     // Video
-    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'
+    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/x-msvideo', 'video/mp2t', 'video/x-flv'
   ];
 
   if (file.size > MAX_FILE_SIZE) {
