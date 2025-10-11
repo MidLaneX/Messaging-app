@@ -407,6 +407,266 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     [uploadingFiles, uploadFile]
   );
 
+  // Handle webcam capture for desktop browsers
+  const handleWebcamCapture = useCallback(async () => {
+    try {
+      console.log("Starting webcam capture...");
+      
+      // Request camera access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: false 
+      });
+      
+      // Create a video element to display the stream
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.playsInline = true;
+      
+      // Create a modal overlay for the camera interface
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      // Create video container
+      const videoContainer = document.createElement('div');
+      videoContainer.style.cssText = `
+        position: relative;
+        max-width: 90%;
+        max-height: 70%;
+        background: black;
+        border-radius: 12px;
+        overflow: hidden;
+      `;
+      
+      video.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      `;
+      
+      // Create buttons container
+      const buttonsContainer = document.createElement('div');
+      buttonsContainer.style.cssText = `
+        margin-top: 20px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      `;
+      
+      // Create capture button
+      const captureBtn = document.createElement('button');
+      captureBtn.innerHTML = '📸 Take Photo';
+      captureBtn.style.cssText = `
+        padding: 12px 24px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      
+      // Create video record button
+      const recordBtn = document.createElement('button');
+      recordBtn.innerHTML = '🎥 Record Video';
+      recordBtn.style.cssText = `
+        padding: 12px 24px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      
+      // Create cancel button
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerHTML = '❌ Cancel';
+      cancelBtn.style.cssText = `
+        padding: 12px 24px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      
+      // Video recording variables
+      let mediaRecorder: MediaRecorder | null = null;
+      let recordedChunks: Blob[] = [];
+      let isRecording = false;
+      
+      // Capture photo function
+      const capturePhoto = () => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        context?.drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `webcam-photo-${Date.now()}.jpg`, {
+              type: 'image/jpeg'
+            });
+            
+            console.log("Photo captured:", file);
+            setPendingFiles((prev) => [...prev, file]);
+            
+            // Clean up
+            stream.getTracks().forEach(track => track.stop());
+            document.body.removeChild(modal);
+          }
+        }, 'image/jpeg', 0.9);
+      };
+      
+      // Video recording functions
+      const startRecording = async () => {
+        try {
+          // Get stream with audio for video recording
+          const videoStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: true 
+          });
+          
+          recordedChunks = [];
+          mediaRecorder = new MediaRecorder(videoStream);
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              recordedChunks.push(event.data);
+            }
+          };
+          
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const file = new File([blob], `webcam-video-${Date.now()}.webm`, {
+              type: 'video/webm'
+            });
+            
+            console.log("Video recorded:", file);
+            setPendingFiles((prev) => [...prev, file]);
+            
+            // Clean up
+            videoStream.getTracks().forEach(track => track.stop());
+            stream.getTracks().forEach(track => track.stop());
+            document.body.removeChild(modal);
+          };
+          
+          mediaRecorder.start();
+          isRecording = true;
+          recordBtn.innerHTML = '⏹️ Stop Recording';
+          recordBtn.style.background = '#ef4444';
+          
+        } catch (error) {
+          console.error("Failed to start recording:", error);
+          alert("Unable to start video recording. Please check microphone permissions.");
+        }
+      };
+      
+      const stopRecording = () => {
+        if (mediaRecorder && isRecording) {
+          mediaRecorder.stop();
+          isRecording = false;
+        }
+      };
+      
+      const handleRecordClick = () => {
+        if (isRecording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      };
+      
+      // Event listeners
+      captureBtn.addEventListener('click', capturePhoto);
+      recordBtn.addEventListener('click', handleRecordClick);
+      
+      // Keyboard shortcuts
+      const handleKeyPress = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          if (isRecording && mediaRecorder) {
+            mediaRecorder.stop();
+          }
+          stream.getTracks().forEach(track => track.stop());
+          document.body.removeChild(modal);
+          cleanup();
+        } else if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          capturePhoto();
+        } else if (e.key === 'r' || e.key === 'R') {
+          e.preventDefault();
+          handleRecordClick();
+        }
+      };
+      
+      document.addEventListener('keydown', handleKeyPress);
+      
+      // Clean up function
+      const cleanup = () => {
+        document.removeEventListener('keydown', handleKeyPress);
+      };
+      
+      // Add cleanup to cancel button
+      cancelBtn.addEventListener('click', () => {
+        cleanup();
+        if (isRecording && mediaRecorder) {
+          mediaRecorder.stop();
+        }
+        stream.getTracks().forEach(track => track.stop());
+        document.body.removeChild(modal);
+      });
+      
+      // Assemble the modal
+      videoContainer.appendChild(video);
+      buttonsContainer.appendChild(captureBtn);
+      buttonsContainer.appendChild(recordBtn);
+      buttonsContainer.appendChild(cancelBtn);
+      modal.appendChild(videoContainer);
+      modal.appendChild(buttonsContainer);
+      
+      // Add instructions
+      const instructions = document.createElement('div');
+      instructions.innerHTML = 'Press Space/Enter to take photo, R to record, Escape to cancel';
+      instructions.style.cssText = `
+        color: white;
+        text-align: center;
+        margin-top: 10px;
+        font-size: 14px;
+        opacity: 0.8;
+      `;
+      modal.appendChild(instructions);
+      
+      document.body.appendChild(modal);
+      
+      console.log("Webcam capture interface created");
+      
+    } catch (error) {
+      console.error("Failed to access webcam:", error);
+      alert("Unable to access camera. Please check your browser permissions.");
+    }
+  }, []);
+
   // Handle attachment menu actions
   const handleAttachmentAction = useCallback((action: string) => {
     console.log("Attachment action triggered:", action);
@@ -426,31 +686,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           fileInputRef.current.click();
           break;
         case "camera":
-          console.log("Setting up camera capture");
-          // Set accept to image and add capture attribute for camera
-          fileInputRef.current.accept = "image/*";
+          console.log("Setting up camera capture for both video and image");
           
-          // Check if device supports camera capture
-          const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          const isMobileDevice =
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+              navigator.userAgent
+            );
           console.log("Is mobile device:", isMobileDevice);
-          
-          if (isMobileDevice) {
-            // For mobile devices, use camera capture
+
+          // Check if browser supports getUserMedia for camera access
+          const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+          console.log("Browser supports camera:", hasCamera);
+
+          if (!isMobileDevice && hasCamera) {
+            // For desktop browsers, use custom webcam capture
+            handleWebcamCapture();
+          } else {
+            // For mobile devices or browsers without camera support, use file input with capture
+            fileInputRef.current.accept = "image/*,video/*";
             fileInputRef.current.setAttribute("capture", "environment");
-            console.log("Camera capture attribute added");
+            fileInputRef.current.setAttribute("multiple", "false");
+            fileInputRef.current.click();
+            
+            // Reset after click
+            setTimeout(() => {
+              if (fileInputRef.current) {
+                fileInputRef.current.removeAttribute("capture");
+                fileInputRef.current.removeAttribute("multiple");
+              }
+            }, 100);
           }
-          
-          fileInputRef.current.setAttribute("multiple", "false");
-          fileInputRef.current.click();
-          
-          // Reset after click to allow gallery access next time
-          setTimeout(() => {
-            if (fileInputRef.current) {
-              fileInputRef.current.removeAttribute("capture");
-              fileInputRef.current.removeAttribute("multiple");
-              console.log("Camera attributes reset");
-            }
-          }, 100);
           break;
         default:
           console.log("Unknown action:", action);
