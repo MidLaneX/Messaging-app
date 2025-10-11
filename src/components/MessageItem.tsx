@@ -107,10 +107,16 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {shouldShowDateDivider(
         message.createdAt ? new Date(message.createdAt) : new Date()
       ) && (
-        <div className={`flex justify-center ${isMobile ? 'my-2' : 'my-4'} animate-fade-in`}>
-          <span className={`bg-gray-100 text-gray-600 ${
-            isMobile ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xs'
-          } rounded-full font-medium`}>
+        <div
+          className={`flex justify-center ${
+            isMobile ? "my-2" : "my-4"
+          } animate-fade-in`}
+        >
+          <span
+            className={`bg-gray-100 text-gray-600 ${
+              isMobile ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-xs"
+            } rounded-full font-medium`}
+          >
             {formatDate(
               message.createdAt ? new Date(message.createdAt) : new Date()
             )}
@@ -119,80 +125,142 @@ const MessageItem: React.FC<MessageItemProps> = ({
       )}
 
       <div
-        className={`flex ${isMobile ? 'mb-1.5' : 'mb-2'} animate-slide-up group ${
+        className={`flex ${
+          isMobile ? "mb-1.5" : "mb-2"
+        } animate-slide-up group ${
           isCurrentUser ? "justify-end" : "justify-start"
         }`}
       >
         {!isCurrentUser && showAvatar && (
-          <div className={`${
-            isMobile ? 'w-6 h-6 text-xs mr-1.5' : 'w-8 h-8 text-xs mr-2'
-          } bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}>
-            {isGroupChat && senderInfo ? senderInfo.senderAvatar : (user.avatar || "👤")}
+          <div
+            className={`${
+              isMobile ? "w-6 h-6 text-xs mr-1.5" : "w-8 h-8 text-xs mr-2"
+            } bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}
+          >
+            {isGroupChat && senderInfo
+              ? senderInfo.senderAvatar
+              : user.avatar || "👤"}
           </div>
         )}
 
         <div
           className={`relative ${
-            isMobile ? 'max-w-[280px] px-3 py-2' : 'max-w-xs lg:max-w-lg px-4 py-3'
+            isMobile ? "max-w-[280px]" : "max-w-xs lg:max-w-lg"
+          } ${
+            message.type === "FILE"
+              ? ""
+              : `${isMobile ? "px-3 py-2" : "px-4 py-3"}`
           } rounded-lg transition-all duration-200 ${
             isCurrentUser
-              ? "bg-green-600 text-white rounded-br-sm"
+              ? message.type === "FILE"
+                ? "" // No background for file messages
+                : "bg-green-600 text-white rounded-br-sm"
+              : message.type === "FILE"
+              ? "" // No background for file messages
               : "bg-white text-gray-900 rounded-bl-sm border border-gray-200"
           }`}
         >
           {/* Show sender name for group messages */}
-          {!isCurrentUser && showAvatar && isGroupChat && senderInfo && (
-            <div className={`${
-              isMobile ? 'text-xs' : 'text-sm'
-            } font-semibold text-emerald-600 mb-1`}>
-              {senderInfo.senderName}
-            </div>
-          )}
+          {!isCurrentUser &&
+            showAvatar &&
+            isGroupChat &&
+            senderInfo &&
+            message.type !== "FILE" && (
+              <div
+                className={`${
+                  isMobile ? "text-xs" : "text-sm"
+                } font-semibold text-emerald-600 mb-1`}
+              >
+                {senderInfo.senderName}
+              </div>
+            )}
 
           {/* Message Content */}
-          {message.type === 'FILE' && message.fileAttachment ? (
+          {message.type === "FILE" && message.fileAttachment ? (
             <div className="space-y-2">
-              {/* Text content if any */}
-              {message.content && message.content.trim() && (
-                <div className={`${
-                  isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
-                } whitespace-pre-wrap break-words`}>
-                  {message.content}
+              {/* Sender name for file messages in group chat */}
+              {!isCurrentUser && showAvatar && isGroupChat && senderInfo && (
+                <div
+                  className={`${
+                    isMobile ? "text-xs" : "text-sm"
+                  } font-semibold text-emerald-600 mb-2`}
+                >
+                  {senderInfo.senderName}
                 </div>
               )}
-              
-              {/* File Attachment */}
-              <div className="inline-block">
-                <FileAttachment
-                  fileAttachment={message.fileAttachment}
-                  currentUserId={currentUserId}
-                  isMobile={isMobile}
-                  isCurrentUser={isCurrentUser}
-                />
-              </div>
+
+              {/* File Attachment - clean presentation */}
+              <FileAttachment
+                fileAttachment={message.fileAttachment}
+                currentUserId={currentUserId}
+                isMobile={isMobile}
+                isCurrentUser={isCurrentUser}
+              />
+
+              {/* Text content if any - shown below file */}
+              {message.content && message.content.trim() && (
+                <div
+                  className={`${isMobile ? "px-3 py-2" : "px-4 py-3"} ${
+                    isCurrentUser
+                      ? "bg-green-600 text-white rounded-lg"
+                      : "bg-white text-gray-900 rounded-lg border border-gray-200"
+                  }`}
+                >
+                  <div
+                    className={`${
+                      isMobile
+                        ? "text-sm leading-snug"
+                        : "text-base leading-relaxed"
+                    } whitespace-pre-wrap break-words`}
+                  >
+                    {message.content}
+                  </div>
+                  <div
+                    className={`flex items-center justify-end space-x-1 mt-1 ${
+                      isMobile ? "text-xs" : "text-sm"
+                    } opacity-70`}
+                  >
+                    <span className="select-none">
+                      {formatTime(
+                        message.createdAt
+                          ? new Date(message.createdAt)
+                          : new Date()
+                      )}
+                    </span>
+                    {getMessageStatusIcon()}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* Regular text message */
-            <div className={`${
-              isMobile ? 'text-sm leading-snug' : 'text-base leading-relaxed'
-            } whitespace-pre-wrap break-words`}>
-              {message.content}
-            </div>
+            <>
+              <div
+                className={`${
+                  isMobile
+                    ? "text-sm leading-snug"
+                    : "text-base leading-relaxed"
+                } whitespace-pre-wrap break-words`}
+              >
+                {message.content}
+              </div>
+              <div
+                className={`flex items-center justify-end space-x-1 mt-1 ${
+                  isMobile ? "text-xs" : "text-sm"
+                } opacity-70`}
+              >
+                <span className="select-none">
+                  {formatTime(
+                    message.createdAt ? new Date(message.createdAt) : new Date()
+                  )}
+                </span>
+                {getMessageStatusIcon()}
+              </div>
+            </>
           )}
 
-          <div className={`flex items-center justify-end space-x-1 mt-1 ${
-            isMobile ? 'text-xs' : 'text-sm'
-          } opacity-70`}>
-            <span className="select-none">
-              {formatTime(
-                message.createdAt ? new Date(message.createdAt) : new Date()
-              )}
-            </span>
-            {getMessageStatusIcon()}
-          </div>
-
-          {/* Message tail */}
-          {showAvatar && (
+          {/* Message tail - hide for file-only messages */}
+          {showAvatar && message.type !== "FILE" && (
             <div
               className={`absolute bottom-0 ${
                 isCurrentUser
@@ -204,9 +272,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
         </div>
 
         {isCurrentUser && showAvatar && (
-          <div className={`${
-            isMobile ? 'w-6 h-6 text-xs ml-1.5' : 'w-8 h-8 text-xs ml-2'
-          } bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}>
+          <div
+            className={`${
+              isMobile ? "w-6 h-6 text-xs ml-1.5" : "w-8 h-8 text-xs ml-2"
+            } bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 self-end`}
+          >
             {user.avatar || "👤"}
           </div>
         )}

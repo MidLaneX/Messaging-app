@@ -369,18 +369,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       switch (action) {
         case "image":
           fileInputRef.current.accept = "image/*,video/*";
+          fileInputRef.current.removeAttribute("capture");
           fileInputRef.current.click();
           break;
         case "document":
           fileInputRef.current.accept =
             ".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx";
+          fileInputRef.current.removeAttribute("capture");
           fileInputRef.current.click();
           break;
         case "camera":
-          // TODO: Implement camera capture
+          // Set accept to image and add capture attribute for camera
           fileInputRef.current.accept = "image/*";
           fileInputRef.current.setAttribute("capture", "environment");
           fileInputRef.current.click();
+          // Reset after click to allow gallery access next time
+          setTimeout(() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.removeAttribute("capture");
+            }
+          }, 100);
           break;
         default:
           break;
