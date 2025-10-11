@@ -17,6 +17,7 @@ import { User, Message } from "../types";
 import { formatLastSeen, generateUUID } from "../utils";
 import { getFileCategory, getFileIcon, validateFile } from "../utils/fileConfig";
 import { backendFileService } from "../services/backendFileService";
+import { userService, CollabUserProfile } from "../services/userService";
 import MessageItem from "./MessageItem";
 
 interface UploadProgress {
@@ -71,6 +72,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
+
+  // User profiles cache for message avatars
+  const [userProfiles, setUserProfiles] = useState<
+    Map<string, CollabUserProfile>
+  >(new Map());
 
   // File upload states
   const [uploadingFiles, setUploadingFiles] = useState<
@@ -129,6 +135,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         new Date(b.createdAt || "").getTime()
     );
   }, [selectedUser, messages, wsMessages]);
+
+  // Function to fetch and cache user profiles
+  const fetchUserProfile = useCallback(
+    async (userId: string) => {
+      if (userProfiles.has(userId)) {
+        return userProfiles.get(userId);
+      }
+
+      try {
+        const profile = await userService.getUserById(userId);
+        if (profile) {
+          setUserProfiles((prev) => new Map(prev.set(userId, profile)));
+          return profile;
+        }
+      } catch (error) {
+        console.error(`Failed to fetch profile for user ${userId}:`, error);
+      }
+      return null;
+    },
+    [userProfiles]
+  );
+
+  // Effect to preload user profiles for visible messages
+  useEffect(() => {
+    const userIds = new Set<string>();
+
+    // Collect unique user IDs from messages
+    [...messages, ...wsMessages].forEach((message) => {
+      if (message.senderId && !userProfiles.has(message.senderId)) {
+        userIds.add(message.senderId);
+      }
+    });
+
+    // Fetch profiles for new users
+    userIds.forEach((userId) => {
+      fetchUserProfile(userId);
+    });
+  }, [messages, wsMessages, userProfiles, fetchUserProfile]);
 
   const scrollToBottom = useCallback((behavior: "auto" | "smooth" = "auto") => {
     if (messagesContainerRef.current) {
@@ -719,17 +763,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               >
                 <div
                   className={`${
-                    isMobile ? "w-10 h-10 text-base" : "w-12 h-12 text-lg"
-                  } bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center font-semibold text-white shadow-lg ring-2 ring-emerald-400 ring-opacity-50 ${
+                    isMobile ? "w-10 h-10" : "w-12 h-12"
+                  } rounded-full flex items-center justify-center font-semibold text-white shadow-lg ring-2 ring-emerald-400 ring-opacity-50 overflow-hidden ${
                     selectedUser.isGroup
                       ? "hover:ring-emerald-300 transition-all"
                       : ""
+                  } ${
+                    selectedUser.avatar?.startsWith("http")
+                      ? "bg-gray-200"
+                      : "bg-gradient-to-br from-emerald-400 to-emerald-600"
                   }`}
                 >
-                  {selectedUser.avatar ||
-                    (selectedUser.isGroup
-                      ? "👥"
-                      : selectedUser.name.charAt(0).toUpperCase())}
+                  {selectedUser.avatar?.startsWith("http") ? (
+                    <img
+                      src={selectedUser.avatar}
+                      alt={selectedUser.name}
+                      className="w-full h-full object-cover rounded-full"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.className = parent.className.replace(
+                            "bg-gray-200",
+                            "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                          );
+                          parent.innerHTML = selectedUser.isGroup
+                            ? "👥"
+                            : selectedUser.name.charAt(0).toUpperCase();
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className={`${isMobile ? "text-base" : "text-lg"}`}>
+                      {selectedUser.avatar ||
+                        (selectedUser.isGroup
+                          ? "👥"
+                          : selectedUser.name.charAt(0).toUpperCase())}
+                    </span>
+                  )}
                 </div>
                 {!selectedUser.isGroup && selectedUser.isOnline && (
                   <div
@@ -1033,6 +1104,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     isGroupChat={selectedUser.isGroup}
                     isMobile={isMobile}
                     currentUserId={currentUser.id}
+                    userProfiles={userProfiles}
                   />
                 );
               })}
