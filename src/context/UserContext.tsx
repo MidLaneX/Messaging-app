@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { userMappingService } from "../services/userMappingService";
+import { messagePersistence } from "../services/messagePersistence";
+import { conversationPersistence } from "../services/conversationPersistence";
+import { selectedConversationPersistence } from "../services/selectedConversationPersistence";
 
 interface UserContextType {
   // Collab service user ID (used for messaging)
@@ -58,11 +61,37 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         console.error("Error parsing saved user data:", error);
         localStorage.removeItem(USER_STORAGE_KEY);
         userMappingService.clearAll();
+        // Clear all messaging data if user data is corrupt
+        messagePersistence.clearAllMessages();
+        conversationPersistence.clearConversations();
+        selectedConversationPersistence.clearSelectedConversation();
       }
+    } else {
+      // If no user data or mapping, ensure we clear any stale messaging data
+      console.log("🧹 No valid user session found, clearing all messaging data");
+      messagePersistence.clearAllMessages();
+      conversationPersistence.clearConversations();
+      selectedConversationPersistence.clearSelectedConversation();
     }
   }, []);
 
   const setUserData = (mainId: number, collabId: string, userName: string) => {
+    console.log("🔄 Setting new user data...");
+    
+    // Check if this is the same user (no need to clear data)
+    const isSameUser = mainUserId === mainId && currentUserId === collabId;
+    
+    if (!isSameUser) {
+      console.log("👤 Different user detected, clearing previous user's data...");
+      // Clear all previous user's data only if it's a different user
+      messagePersistence.clearAllMessages();
+      conversationPersistence.clearConversations();
+      selectedConversationPersistence.clearSelectedConversation();
+    } else {
+      console.log("👤 Same user detected, preserving existing data...");
+    }
+    
+    // Set new user data
     setMainUserIdState(mainId);
     setCurrentUserIdState(collabId);
     setCurrentUserName(userName);
@@ -87,10 +116,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    console.log("🚪 Starting logout process...");
+    
+    // Clear user state
     setCurrentUserIdState(null);
     setMainUserIdState(null);
     setCurrentUserName(null);
+    
+    // Clear user data from localStorage
     localStorage.removeItem(USER_STORAGE_KEY);
+
+    // Clear all messaging-related data
+    messagePersistence.clearAllMessages();
+    conversationPersistence.clearConversations();
+    selectedConversationPersistence.clearSelectedConversation();
 
     // Clear user mapping and tokens
     userMappingService.clearAll();
@@ -100,7 +139,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       delete (window as any).__MESSAGING_APP_CURRENT_USER_ID__;
     }
 
-    console.log("✅ User logged out successfully");
+    console.log("✅ User logged out successfully - all data cleared");
   };
 
   const isLoggedIn = currentUserId !== null && mainUserId !== null;

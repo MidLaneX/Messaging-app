@@ -46,7 +46,7 @@ const convertGroupToConversation = (group: ChatRoom): ConversationItem => ({
   memberCount: group.memberCount,
 });
 
-export const useConversations = (): UseConversationsReturn => {
+export const useConversations = (currentUserId?: string): UseConversationsReturn => {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -58,6 +58,14 @@ export const useConversations = (): UseConversationsReturn => {
     try {
       setLoading(true);
       setError(null);
+
+      // Use provided currentUserId or fallback to APP_CONFIG
+      const userId = currentUserId || APP_CONFIG.CURRENT_USER_ID;
+      if (!userId) {
+        console.warn("No current user ID available, skipping conversation load");
+        setLoading(false);
+        return;
+      }
 
       // First, try to load from cache if available and not expired
       const cachedConversations = conversationPersistence.loadConversations();
@@ -71,10 +79,10 @@ export const useConversations = (): UseConversationsReturn => {
       // Load fresh data from API
       console.log("🔄 Loading conversations from API...");
       const usersResponse = await recentUsersService.getInitialRecentUsers(
-        APP_CONFIG.CURRENT_USER_ID
+        userId
       );
       const groupsResponse = await groupService
-        .getUserGroups(APP_CONFIG.CURRENT_USER_ID)
+        .getUserGroups(userId)
         .catch(() => []);
 
       const users = usersResponse?.users || [];
@@ -120,9 +128,17 @@ export const useConversations = (): UseConversationsReturn => {
       setLoadingMore(true);
       setError(null);
 
+      // Use provided currentUserId or fallback to APP_CONFIG
+      const userId = currentUserId || APP_CONFIG.CURRENT_USER_ID;
+      if (!userId) {
+        console.warn("No current user ID available for loadMore");
+        setLoadingMore(false);
+        return;
+      }
+
       const nextPage = currentPage + 1;
       const response = await recentUsersService.loadMoreRecentUsers(
-        APP_CONFIG.CURRENT_USER_ID,
+        userId,
         nextPage
       );
 
@@ -160,7 +176,7 @@ export const useConversations = (): UseConversationsReturn => {
     } finally {
       setLoadingMore(false);
     }
-  }, [currentPage, hasMore, loadingMore]);
+  }, [currentPage, hasMore, loadingMore, currentUserId]);
 
   const refresh = useCallback(async () => {
     conversationPersistence.clearConversations();
@@ -203,7 +219,27 @@ export const useConversations = (): UseConversationsReturn => {
 
   useEffect(() => {
     loadInitial();
-  }, [loadInitial]);
+  }, [loadInitial, currentUserId]);
+
+  // Refresh conversations when current user changes
+  useEffect(() => {
+    if (currentUserId) {
+      console.log(`🔄 User ID available: ${currentUserId}, ensuring conversations are loaded...`);
+      
+      // Only refresh if we don't have conversations or if cache is expired
+      const cachedConversations = conversationPersistence.loadConversations();
+      if (!cachedConversations || cachedConversations.length === 0) {
+        console.log("📱 No cached conversations found, loading fresh data...");
+        setConversations([]);
+        setCurrentPage(1);
+        setHasMore(false);
+        loadInitial();
+      } else {
+        console.log("📱 Using existing cached conversations");
+        setConversations(cachedConversations);
+      }
+    }
+  }, [currentUserId, loadInitial]);
 
   return {
     conversations,

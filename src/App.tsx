@@ -35,23 +35,10 @@ const LoadingSpinner = () => (
 // Main chat application component
 const ChatApp: React.FC = () => {
   const { currentUserId, currentUserName, isLoggedIn } = useUser();
-  const [selectedUser, setSelectedUser] = useState<User | null>(() => {
-    // Try to restore selected conversation from localStorage
-    return selectedConversationPersistence.loadSelectedConversation();
-  });
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [wsMessages, setWsMessages] = useState<Message[]>(() => {
-    // Clean up old messages first
-    messagePersistence.cleanupOldMessages();
-
-    // Load persisted WebSocket messages on initialization
-    const persistedMessages = messagePersistence.loadWsMessages();
-    console.log(
-      `📱 Loaded ${persistedMessages.length} persisted WebSocket messages`
-    );
-    return persistedMessages;
-  });
+  const [wsMessages, setWsMessages] = useState<Message[]>([]);
   const [connectionStatus, setConnectionStatus] = useState(
     getConnectionStatus()
   );
@@ -61,6 +48,50 @@ const ChatApp: React.FC = () => {
   const { viewportHeight, isKeyboardOpen } = useViewportHeight();
   const [showChatView, setShowChatView] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Clear all state when currentUserId changes (new user login)
+  useEffect(() => {
+    if (currentUserId) {
+      console.log("🔄 User session active, ensuring data is loaded...");
+      
+      // Load persisted messages if we don't have any
+      if (wsMessages.length === 0) {
+        const persistedMessages = messagePersistence.loadWsMessages();
+        if (persistedMessages.length > 0) {
+          setWsMessages(persistedMessages);
+          console.log(`📱 Loaded ${persistedMessages.length} persisted messages for user: ${currentUserId}`);
+        }
+      }
+      
+      // Try to restore selected conversation for this user (only if none selected)
+      if (!selectedUser) {
+        const selectedConversation = selectedConversationPersistence.loadSelectedConversation();
+        if (selectedConversation) {
+          setSelectedUser(selectedConversation);
+        }
+      }
+      
+      console.log(`✅ User data initialized for user: ${currentUserId}`);
+    }
+  }, [currentUserId]);
+
+  // Handle page refresh/reload to ensure messages are preserved
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log("🔄 Page reloading, preserving messages...");
+      // Save current messages before unload
+      if (wsMessages.length > 0) {
+        messagePersistence.saveWsMessages(wsMessages);
+        console.log(`� Saved ${wsMessages.length} messages before page unload`);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [wsMessages]);
 
   // Fetch current user profile
   useEffect(() => {
@@ -99,7 +130,7 @@ const ChatApp: React.FC = () => {
     loadMore,
     addConversation,
     error,
-  } = useConversations();
+  } = useConversations(currentUserId);
 
   // Function to get the latest message for a conversation from WebSocket messages
   const getLatestWSMessageForConversation = (
@@ -322,18 +353,46 @@ const ChatApp: React.FC = () => {
           );
         }
 
-        // Map API response to Message[] with timestamp as Date
-        setMessages(
-          (res.data.content || [])
-            .sort(
-              (a: any, b: any) =>
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime()
-            )
-            .map((msg: any) => ({
-              ...msg,
-            }))
+        // Map API response to Message[]
+        const apiMessages = (res.data.content || [])
+          .sort(
+            (a: any, b: any) =>
+              new Date(a.createdAt).getTime() -
+              new Date(b.createdAt).getTime()
+          )
+          .map((msg: any) => ({
+            ...msg,
+          }));
+
+        // Get persisted WebSocket messages for this conversation
+        const persistedMessages = messagePersistence.getMessagesForConversation(
+          selectedUser.id, 
+          selectedUser.isGroup || false
         );
+
+        // Merge API messages with persisted WebSocket messages, avoiding duplicates
+        const allMessages = [...apiMessages];
+        persistedMessages.forEach(persistedMsg => {
+          const isDuplicate = allMessages.some(apiMsg => 
+            apiMsg.id === persistedMsg.id || 
+            (apiMsg.content === persistedMsg.content && 
+             apiMsg.senderId === persistedMsg.senderId &&
+             Math.abs(new Date(apiMsg.createdAt).getTime() - new Date(persistedMsg.createdAt || new Date()).getTime()) < 1000)
+          );
+          if (!isDuplicate) {
+            allMessages.push(persistedMsg);
+          }
+        });
+
+        // Sort all messages by timestamp
+        const sortedMessages = allMessages.sort(
+          (a: any, b: any) =>
+            new Date(a.createdAt || new Date()).getTime() -
+            new Date(b.createdAt || new Date()).getTime()
+        );
+
+        setMessages(sortedMessages);
+        console.log(`📱 Loaded ${sortedMessages.length} messages (${apiMessages.length} from API, ${persistedMessages.length} from cache)`);
       } catch (err) {
         console.error("Error fetching messages:", err);
         setMessages([]);
@@ -443,6 +502,9 @@ const ChatApp: React.FC = () => {
               };
 
               console.log("Adding new private message to UI:", newMessage);
+
+              // Save message to localStorage immediately
+              messagePersistence.addMessage(newMessage);
 
               // Update conversation cache with new message
               updateConversationWithNewMessage(newMessage);
@@ -555,6 +617,9 @@ const ChatApp: React.FC = () => {
                   );
                   console.log("Current wsMessages length:", prev.length);
 
+                  // Save message to localStorage immediately
+                  messagePersistence.addMessage(newMessage);
+
                   // Update conversation cache with new message
                   updateConversationWithNewMessage(newMessage);
 
@@ -593,16 +658,20 @@ const ChatApp: React.FC = () => {
   useEffect(() => {
     console.log(`Selected user changed to: ${selectedUser?.id || "none"}`);
 
-    // Clear old WebSocket messages to prevent memory bloat
-    // Keep only messages relevant to all potential conversations
+    // Clear all messages when switching conversations to prevent cross-contamination
+    setMessages([]);
+    setLoadingMessages(false);
+
+    // Also clear WebSocket messages that don't belong to current user
     setWsMessages((prev) =>
       prev.filter((msg) => {
-        // Keep messages where current user is involved (private or group)
-        return (
+        // Keep only messages where current user is involved
+        const isCurrentUserInvolved = 
           msg.senderId === currentUser.id ||
           msg.recipientId === currentUser.id ||
-          (msg.chatType === "GROUP" && msg.groupId)
-        ); // Keep all group messages for now
+          (msg.chatType === "GROUP" && msg.groupId);
+        
+        return isCurrentUserInvolved;
       })
     );
   }, [selectedUser, currentUser.id]);
