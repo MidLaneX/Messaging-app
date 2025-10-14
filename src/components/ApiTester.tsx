@@ -38,8 +38,8 @@ export const ApiTester: React.FC = () => {
       // Test 2: Test backend connectivity
       addResult("🌐 Testing backend connectivity...");
       try {
-        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:8090';
-        const response = await fetch(`${backendUrl}/health`);
+        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${backendUrl}/api/collab/health`);
         if (response.ok) {
           addResult(`✅ Backend reachable at ${backendUrl}`);
         } else {

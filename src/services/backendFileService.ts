@@ -141,7 +141,7 @@ class BackendFileService {
         });
 
         // Send the request
-        xhr.open("POST", `${this.baseUrl}/api/files/upload`, true);
+        xhr.open("POST", `${this.baseUrl}/api/collab/files/upload`, true);
         xhr.send(formData);
       });
     } catch (error) {
@@ -162,7 +162,7 @@ class BackendFileService {
   ): Promise<FileMetadata | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/metadata/${fileId}?userId=${userId}`,
+        `${this.baseUrl}/api/collab/files/metadata/${fileId}?userId=${userId}`,
         {
           method: "GET",
           headers: {
@@ -187,7 +187,7 @@ class BackendFileService {
    * Generate download URL for file
    */
   getDownloadUrl(fileId: string, userId: string): string {
-    return `${this.baseUrl}/api/files/download/${fileId}?userId=${userId}`;
+    return `${this.baseUrl}/api/collab/files/download/${fileId}?userId=${userId}`;
   }
 
   /**
@@ -195,7 +195,7 @@ class BackendFileService {
    * Uses the download endpoint but for inline display
    */
   getViewUrl(fileId: string, userId: string): string {
-    return `${this.baseUrl}/api/files/download/${fileId}?userId=${userId}&inline=true`;
+    return `${this.baseUrl}/api/collab/files/download/${fileId}?userId=${userId}&inline=true`;
   }
 
   /**
@@ -208,7 +208,7 @@ class BackendFileService {
   ): Promise<string | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/presigned-url/${fileId}?userId=${userId}&expirySeconds=${expirySeconds}`,
+        `${this.baseUrl}/api/collab/files/presigned-url/${fileId}?userId=${userId}&expirySeconds=${expirySeconds}`,
         {
           method: "GET",
           headers: {
@@ -260,7 +260,7 @@ class BackendFileService {
   async deleteFile(fileId: string, userId: string): Promise<boolean> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/${fileId}?userId=${userId}`,
+        `${this.baseUrl}/api/collab/files/${fileId}?userId=${userId}`,
         {
           method: "DELETE",
           headers: {
@@ -296,7 +296,7 @@ class BackendFileService {
   } | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/user/${userId}?requestingUserId=${userId}&page=${page}&size=${size}`,
+        `${this.baseUrl}/api/collab/files/user/${userId}?requestingUserId=${userId}&page=${page}&size=${size}`,
         {
           method: "GET",
           headers: {
@@ -331,7 +331,7 @@ class BackendFileService {
   } | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/accessible?userId=${userId}&page=${page}&size=${size}`,
+        `${this.baseUrl}/api/collab/files/accessible?userId=${userId}&page=${page}&size=${size}`,
         {
           method: "GET",
           headers: {
@@ -364,7 +364,7 @@ class BackendFileService {
   } | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/files/stats/${userId}?requestingUserId=${userId}`,
+        `${this.baseUrl}/api/collab/files/stats/${userId}?requestingUserId=${userId}`,
         {
           method: "GET",
           headers: {
@@ -390,7 +390,7 @@ class BackendFileService {
    */
   async isServiceAvailable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/files/health`, {
+      const response = await fetch(`${this.baseUrl}/api/collab/files/health`, {
         method: "GET",
       });
       return response.ok;

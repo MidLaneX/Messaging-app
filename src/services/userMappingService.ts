@@ -7,7 +7,7 @@
 
 import { APP_CONFIG } from '../constants';
 
-const COLLAB_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090';
+const COLLAB_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 export interface CollabUser {
   id: string;
@@ -43,7 +43,7 @@ class UserMappingService {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      const response = await fetch(`${COLLAB_API_URL}/api/users/by-user-id/${mainUserId}`, {
+      const response = await fetch(`${COLLAB_API_URL}/api/collab/users/by-user-id/${mainUserId}`, {
         method: 'GET',
         headers,
       });

@@ -15,7 +15,7 @@
     <div id="logs"></div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:8090';
+        const API_BASE_URL = 'http://localhost:8080';
         
         function log(message) {
             const logs = document.getElementById('logs');
@@ -45,7 +45,7 @@
             formData.append('userId', userId);
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
+                const response = await fetch(`${API_BASE_URL}/api/collab/files/upload`, {
                     method: 'POST',
                     body: formData
                 });

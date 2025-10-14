@@ -46,7 +46,7 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
     try {
       console.log(`Fetching members for group: ${groupId}`);
       const response = await axios.get(
-        `${APP_CONFIG.API_BASE_URL}/api/groups/${groupId}/members`
+        `${APP_CONFIG.API_BASE_URL}/api/collab/groups/${groupId}/members`
       );
       console.log('Group members response:', response.data);
       
