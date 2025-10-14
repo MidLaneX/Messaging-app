@@ -75,6 +75,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         errorMessage =
           `⚠️ Account not found in collaboration service.\n` +
           `Please contact administrator to set up your account.`;
+      } else if (err.message && err.message.includes("Server error")) {
+        errorMessage =
+          `🔴 Backend Error: ${err.message}\n\n` +
+          `This is likely a backend database issue. The user account may need to be created in the collaboration service database.`;
       }
 
       setError(errorMessage);
