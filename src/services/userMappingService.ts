@@ -52,6 +52,11 @@ class UserMappingService {
         if (response.status === 404) {
           throw new Error('User not found in collaboration service. Please contact administrator.');
         }
+        if (response.status === 500) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('🔴 Backend Internal Server Error:', errorData);
+          throw new Error(`Server error while fetching user. The user may not exist in the collaboration database. Please check backend logs or contact administrator. (User ID: ${mainUserId})`);
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `Failed to fetch collab user: ${response.statusText}`);
       }
