@@ -238,7 +238,7 @@ class RecentUsersService {
   // Additional method to send a message (for future use)
   async sendMessage(senderId: string, receiverId: string, content: string): Promise<Message> {
     try {
-      const response: AxiosResponse<Message> = await this.axiosInstance.post('/api/messages/send', {
+      const response: AxiosResponse<Message> = await this.axiosInstance.post('/api/collab/messages/send', {
         senderId,
         receiverId,
         content,
@@ -264,7 +264,7 @@ class RecentUsersService {
   // Method to mark messages as read
   async markMessagesAsRead(messageIds: string[]): Promise<void> {
     try {
-      await this.axiosInstance.post('/api/messages/mark-read', {
+      await this.axiosInstance.post('/api/collab/messages/mark-read', {
         messageIds,
       });
     } catch (error) {
@@ -290,7 +290,7 @@ class RecentUsersService {
     totalPages: number;
   }> {
     try {
-      const response = await this.axiosInstance.get(`/api/messages/${userId1}/${userId2}`, {
+      const response = await this.axiosInstance.get(`/api/collab/messages/${userId1}/${userId2}`, {
         params: { page, limit },
       });
 
@@ -325,7 +325,7 @@ export async function fetchLastMessageForUser(currentUserId: string, otherUserId
   try {
     const axios = (await import('axios')).default;
     const response = await axios.get(
-      `${APP_CONFIG.API_BASE_URL}/api/users/${currentUserId}/chats/${otherUserId}?page=0&size=1`
+      `${APP_CONFIG.API_BASE_URL}/api/collab/users/${currentUserId}/chats/${otherUserId}?page=0&size=1`
     );
     
     const messages = response.data.content;
@@ -344,7 +344,7 @@ export async function fetchLastMessageForGroup(groupId: string): Promise<Message
   try {
     const axios = (await import('axios')).default;
     const response = await axios.get(
-      `${APP_CONFIG.API_BASE_URL}/api/chat/group/${groupId}?page=0&size=1`
+      `${APP_CONFIG.API_BASE_URL}/api/collab/chat/group/${groupId}?page=0&size=1`
     );
     
     const messages = response.data.content;

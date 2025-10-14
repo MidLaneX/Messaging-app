@@ -61,7 +61,7 @@ export function connectWebSocket(
     );
 
     // Create socket with factory function for proper reconnection support
-    const socketFactory = () => new SockJS(`${APP_CONFIG.API_BASE_URL}/ws`);
+    const socketFactory = () => new SockJS(`${APP_CONFIG.API_BASE_URL}/api/collab/ws`);
     stompClient = Stomp.over(socketFactory);
 
     // Configure STOMP client - disable debug in production

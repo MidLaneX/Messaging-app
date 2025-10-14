@@ -25,8 +25,8 @@ const getCurrentUserId = (): string => {
 export const APP_CONFIG = {
   APP_NAME: "MessagingApp",
   VERSION: "1.0.0",
-  API_BASE_URL: process.env.REACT_APP_API_URL || "http://localhost:8090",
-  WEBSOCKET_URL: process.env.REACT_APP_WS_URL || "ws://localhost:8090",
+  API_BASE_URL: process.env.REACT_APP_API_URL || "http://localhost:8080",
+  WEBSOCKET_URL: process.env.REACT_APP_WS_URL || "ws://localhost:8080",
   get CURRENT_USER_ID() {
     return getCurrentUserId();
   },
@@ -70,18 +70,18 @@ export const MESSAGE_CONFIG = {
 
 export const API_ENDPOINTS = {
   RECENT_USERS_INITIAL: (userId: string) =>
-    `/api/users/${userId}/recent-users/initial`,
+    `/api/collab/users/${userId}/recent-users/initial`,
   RECENT_USERS_LOAD_MORE: (userId: string, page: number) =>
-    `/api/users/${userId}/recent-users/load-more?page=${page}`,
+    `/api/collab/users/${userId}/recent-users/load-more?page=${page}`,
   RECENT_CONVERSATIONS: (userId: string) =>
-    `/api/users/${userId}/conversations`,
-  SEND_MESSAGE: "/api/messages/send",
+    `/api/collab/users/${userId}/conversations`,
+  SEND_MESSAGE: "/api/collab/messages/send",
   GET_MESSAGES: (userId1: string, userId2: string) =>
-    `/api/messages/${userId1}/${userId2}`,
-  MARK_READ: (messageId: string) => `/api/messages/${messageId}/read`,
-  USER_GROUPS: (userId: string) => `/api/groups/user/${userId}`,
-  GROUP_MESSAGES: (groupId: string) => `/api/chat/group/${groupId}`,
-  SEND_GROUP_MESSAGE: (groupId: string) => `/api/groups/${groupId}/messages`,
+    `/api/collab/messages/${userId1}/${userId2}`,
+  MARK_READ: (messageId: string) => `/api/collab/messages/${messageId}/read`,
+  USER_GROUPS: (userId: string) => `/api/collab/groups/user/${userId}`,
+  GROUP_MESSAGES: (groupId: string) => `/api/collab/chat/group/${groupId}`,
+  SEND_GROUP_MESSAGE: (groupId: string) => `/api/collab/groups/${groupId}/messages`,
 } as const;
 
 export const ROUTES = {

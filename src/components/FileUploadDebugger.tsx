@@ -60,7 +60,7 @@ const FileUploadDebugger: React.FC = () => {
   const testBackendConnection = async () => {
     try {
       console.log('Debug: Testing backend connection...');
-      const response = await fetch(`${APP_CONFIG.API_BASE_URL}/api/files/health`);
+      const response = await fetch(`${APP_CONFIG.API_BASE_URL}/api/collab/files/health`);
       console.log('Debug: Health check response:', response.status, response.statusText);
       
       if (response.ok) {

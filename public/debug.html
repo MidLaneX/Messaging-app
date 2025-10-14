@@ -97,7 +97,7 @@
             
             addLog(`🔌 Connecting as user: ${userId}`);
             
-            const socket = new SockJS('http://localhost:8090/ws');
+            const socket = new SockJS('http://localhost:8080/api/collab/ws');
             stompClient = Stomp.over(socket);
             
             // Enable debug for development

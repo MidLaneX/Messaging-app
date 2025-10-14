@@ -30,7 +30,7 @@ class UserService {
   async getUserById(userId: string): Promise<CollabUserProfile | null> {
     try {
       console.log(`Fetching user profile for: ${userId}`);
-      const response = await this.axiosInstance.get(`/api/users/${userId}`);
+      const response = await this.axiosInstance.get(`/api/collab/users/${userId}`);
       console.log("User profile response:", response.data);
       return response.data;
     } catch (error: any) {
@@ -46,7 +46,7 @@ class UserService {
     try {
       console.log(`Fetching user profile for username: ${username}`);
       const response = await this.axiosInstance.get(
-        `/api/users/username/${username}`
+        `/api/collab/users/username/${username}`
       );
       console.log("User profile response:", response.data);
       return response.data;
@@ -63,7 +63,7 @@ class UserService {
     try {
       console.log(`Searching users with query: ${query}`);
       const response = await this.axiosInstance.get(
-        `/api/users/search?query=${encodeURIComponent(query)}`
+        `/api/collab/users/search?query=${encodeURIComponent(query)}`
       );
       console.log("Search users response:", response.data);
       return response.data || [];
@@ -127,7 +127,7 @@ class UserService {
     status: "online" | "offline"
   ): Promise<void> {
     try {
-      await this.axiosInstance.post(`/api/users/${userId}/status`, { status });
+      await this.axiosInstance.post(`/api/collab/users/${userId}/status`, { status });
       console.log(`Updated user ${userId} status to ${status}`);
     } catch (error) {
       console.error(`Failed to update user status:`, error);

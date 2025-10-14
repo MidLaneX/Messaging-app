@@ -69,7 +69,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         errorMessage =
           "⚠️ Backend server not found. Please ensure:\n" +
           "1. Main app backend is running on http://localhost:8080\n" +
-          "2. Collab service is running on http://localhost:8090\n" +
+          "2. API Gateway is routing /api/collab to collaboration service\n" +
           "3. Check the console for detailed error logs";
       } else if (err.message && err.message.includes("User not found")) {
         errorMessage =
@@ -138,7 +138,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         errorMessage =
           "⚠️ Backend server not found. Please ensure:\n" +
           "1. Main app backend is running on http://localhost:8080\n" +
-          "2. Collab service is running on http://localhost:8090\n" +
+          "2. API Gateway is routing /api/collab to collaboration service\n" +
           "3. Check the console for detailed error logs";
       } else if (err.message && err.message.includes("Network")) {
         errorMessage =
