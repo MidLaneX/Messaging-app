@@ -24,14 +24,12 @@ After restart, open the browser console and check:
 ```javascript
 // Check if env vars are loaded
 console.log('Google Client ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID?.substring(0, 20) + '...');
-console.log('Facebook App ID:', process.env.REACT_APP_FACEBOOK_APP_ID);
 console.log('Main App API:', process.env.REACT_APP_MAIN_APP_API_URL);
 ```
 
 You should see:
 ```
 Google Client ID: 868509332944-0opebuommt7vqucco5rdb4l5qsdl4guu.apps.googleusercontent.com
-Facebook App ID: 1234567890123456
 Main App API: http://localhost:8080/api
 ```
 
@@ -45,7 +43,6 @@ REACT_APP_MAIN_APP_API_URL="http://localhost:8080/api"
 
 # Social Authentication
 REACT_APP_GOOGLE_CLIENT_ID=868509332944-0opebuommt7vqucco5rdb4l5qsdl4guu.apps.googleusercontent.com
-REACT_APP_FACEBOOK_APP_ID=1234567890123456
 ```
 
 ## Why Restart is Needed
@@ -62,9 +59,7 @@ REACT_APP_FACEBOOK_APP_ID=1234567890123456
 
 You should see:
 - ✅ No warnings about "Google Client ID not configured"
-- ✅ No warnings about "Facebook App ID not configured"
 - ✅ Google Sign-In button renders properly
-- ✅ Facebook Login button is enabled
 
 ## Still Having Issues?
 
@@ -83,7 +78,6 @@ Add this to `src/index.tsx` temporarily:
 ```typescript
 console.log('🔧 Environment Variables Loaded:');
 console.log('GOOGLE_CLIENT_ID:', !!process.env.REACT_APP_GOOGLE_CLIENT_ID);
-console.log('FACEBOOK_APP_ID:', !!process.env.REACT_APP_FACEBOOK_APP_ID);
 console.log('MAIN_APP_API_URL:', process.env.REACT_APP_MAIN_APP_API_URL);
 ```
 
@@ -91,7 +85,6 @@ console.log('MAIN_APP_API_URL:', process.env.REACT_APP_MAIN_APP_API_URL);
 
 ```bash
 cat .env | grep REACT_APP_GOOGLE_CLIENT_ID
-cat .env | grep REACT_APP_FACEBOOK_APP_ID
 cat .env | grep REACT_APP_MAIN_APP_API_URL
 ```
 
@@ -102,7 +95,6 @@ cat .env | grep REACT_APP_MAIN_APP_API_URL
 1. **Email/Password Form** ✅
 2. **"Or continue with" divider** ✅
 3. **Google Sign-In button** (official Google style) ✅
-4. **Facebook Login button** (blue with Facebook logo) ✅
 
 ### Console Should Show:
 
@@ -110,17 +102,14 @@ cat .env | grep REACT_APP_MAIN_APP_API_URL
 ⚙️ Configuring Google Identity Services...
 📦 Loading Google Identity Services...
 ✅ Google Identity Services loaded
-📦 Loading Facebook SDK...
-✅ Facebook SDK loaded
 ```
 
 ## Next Steps
 
 Once restarted:
 1. ✅ Test Google login
-2. ✅ Test Facebook login
-3. ✅ Test email/password login
-4. ✅ Verify user mapping works
+2. ✅ Test email/password login
+3. ✅ Verify user mapping works
 
 ---
 
