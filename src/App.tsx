@@ -191,6 +191,15 @@ const ChatApp: React.FC = () => {
   // Enhanced conversations with latest WebSocket messages
   const enhancedConversations = useMemo(() => {
     return conversations.map((conv: ConversationItem) => {
+      // Always log the conversation to debug
+      console.log(`Processing conversation ${conv.id}:`, {
+        name: conv.name,
+        isGroup: conv.isGroup,
+        hasRestMessage: !!conv.lastMessage,
+        restMessageContent: conv.lastMessage?.content,
+        restMessageCreatedAt: conv.lastMessage?.createdAt,
+      });
+
       const latestWSMessage = getLatestWSMessageForConversation(
         conv.id,
         conv.isGroup
@@ -203,7 +212,7 @@ const ChatApp: React.FC = () => {
         ).getTime();
         // Fix: Handle both string and potentially undefined createdAt for REST API messages
         const restMessageTime = new Date(
-          conv.lastMessage.createdAt || conv.lastMessage.timestamp || ""
+          conv.lastMessage.createdAt || ""
         ).getTime();
 
         console.log(
@@ -213,16 +222,18 @@ const ChatApp: React.FC = () => {
           {
             wsMessageTime,
             restMessageTime,
+            wsIsValid: !isNaN(wsMessageTime),
+            restIsValid: !isNaN(restMessageTime),
             wsMessage: latestWSMessage,
             restMessage: conv.lastMessage,
-            wsNewer: wsMessageTime > restMessageTime,
+            wsNewer: !isNaN(wsMessageTime) && !isNaN(restMessageTime) && wsMessageTime > restMessageTime,
           }
         );
 
-        // Use WebSocket message if it's newer
-        if (wsMessageTime > restMessageTime) {
+        // Use WebSocket message if it's newer, otherwise keep REST API message
+        if (!isNaN(wsMessageTime) && !isNaN(restMessageTime) && wsMessageTime > restMessageTime) {
           console.log(
-            `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+            `✅ Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
               conv.id
             }`
           );
@@ -230,11 +241,18 @@ const ChatApp: React.FC = () => {
             ...conv,
             lastMessage: latestWSMessage,
           };
+        } else {
+          console.log(
+            `✅ Using REST API message for ${conv.isGroup ? "group" : "user"} ${
+              conv.id
+            } (REST message is current or WS is invalid)`
+          );
+          return conv; // Keep original with REST message
         }
       } else if (latestWSMessage && !conv.lastMessage) {
         // If there's no REST API message but we have a WebSocket message, use it
         console.log(
-          `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+          `✅ Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
             conv.id
           } (no REST message)`
         );
@@ -245,6 +263,11 @@ const ChatApp: React.FC = () => {
       }
 
       // Otherwise, use the original conversation (with REST API lastMessage)
+      console.log(
+        `✅ Using original REST conversation for ${conv.isGroup ? "group" : "user"} ${
+          conv.id
+        } (no WS message, keeping REST message)`
+      );
       return conv;
     });
   }, [conversations, wsMessages, currentUser.id]);
