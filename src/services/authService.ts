@@ -22,7 +22,7 @@ export interface RegisterRequest {
 }
 
 export interface SocialLoginRequest {
-  provider: "google" | "facebook";
+  provider: "google";
   accessToken: string;
   email: string;
   name: string;
@@ -134,7 +134,7 @@ class AuthService {
   }
 
   /**
-   * Social login (Google/Facebook)
+   * Social login (Google)
    */
   async socialLogin(data: SocialLoginRequest): Promise<AuthResponse> {
     try {

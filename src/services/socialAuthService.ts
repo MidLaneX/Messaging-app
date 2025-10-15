@@ -1,17 +1,16 @@
 /**
  * Social Authentication Service for Messaging App
  * 
- * Handles Google and Facebook authentication using OAuth
+ * Handles Google authentication using OAuth
  * Adapted from main app's social auth service
  */
 
 // Get credentials from environment
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
-const FACEBOOK_APP_ID = process.env.REACT_APP_FACEBOOK_APP_ID || '';
 
 export interface SocialAuthResponse {
   accessToken: string;
-  provider: 'google' | 'facebook';
+  provider: 'google';
   email: string;
   name: string;
   profilePicture?: string;
@@ -20,16 +19,6 @@ export interface SocialAuthResponse {
 export interface GoogleCredentialResponse {
   credential: string;
   select_by: string;
-}
-
-export interface FacebookAuthResponse {
-  authResponse: {
-    accessToken: string;
-    expiresIn: number;
-    signedRequest: string;
-    userID: string;
-  };
-  status: string;
 }
 
 declare global {
@@ -42,11 +31,6 @@ declare global {
           prompt: () => void;
         };
       };
-    };
-    FB?: {
-      init: (config: any) => void;
-      login: (callback: (response: FacebookAuthResponse) => void, options?: any) => void;
-      api: (path: string, callback: (response: any) => void) => void;
     };
   }
 }
@@ -118,74 +102,6 @@ export class SocialAuthService {
       width: '100%',
       text: 'continue_with',
       shape: 'rectangular',
-    });
-  }
-
-  // Initialize Facebook SDK
-  initializeFacebook(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!FACEBOOK_APP_ID) {
-        console.warn('⚠️ Facebook App ID not configured in environment variables');
-        reject(new Error('Facebook App ID not configured'));
-        return;
-      }
-
-      // Load Facebook SDK script if not already loaded
-      if (!window.FB) {
-        console.log('📦 Loading Facebook SDK...');
-        const script = document.createElement('script');
-        script.src = 'https://connect.facebook.net/en_US/sdk.js';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          console.log('✅ Facebook SDK loaded');
-          window.FB?.init({
-            appId: FACEBOOK_APP_ID,
-            cookie: true,
-            xfbml: true,
-            version: 'v18.0',
-          });
-          resolve();
-        };
-        script.onerror = () => {
-          console.error('❌ Failed to load Facebook SDK');
-          reject(new Error('Failed to load Facebook SDK'));
-        };
-        document.head.appendChild(script);
-      } else {
-        resolve();
-      }
-    });
-  }
-
-  // Facebook login
-  loginWithFacebook(): Promise<SocialAuthResponse> {
-    return new Promise((resolve, reject) => {
-      if (!window.FB) {
-        reject(new Error('Facebook SDK not initialized'));
-        return;
-      }
-
-      console.log('🔐 Initiating Facebook login...');
-      window.FB.login((response: FacebookAuthResponse) => {
-        if (response.authResponse) {
-          console.log('✅ Facebook authentication successful');
-          // Get user profile information
-          window.FB?.api('/me?fields=name,email,picture', (userInfo: any) => {
-            console.log('✅ Facebook user info retrieved');
-            resolve({
-              accessToken: response.authResponse.accessToken,
-              provider: 'facebook',
-              email: userInfo.email,
-              name: userInfo.name,
-              profilePicture: userInfo.picture?.data?.url,
-            });
-          });
-        } else {
-          console.log('❌ Facebook login cancelled or failed');
-          reject(new Error('Facebook login was cancelled or failed'));
-        }
-      }, { scope: 'email,public_profile' });
     });
   }
 
