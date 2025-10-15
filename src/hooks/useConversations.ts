@@ -88,9 +88,34 @@ export const useConversations = (currentUserId?: string): UseConversationsReturn
       const users = usersResponse?.users || [];
       const groups = Array.isArray(groupsResponse) ? groupsResponse : [];
 
+      console.log("📥 Received users from API:", users.length, "users");
+      console.log("📥 Received groups from API:", groups.length, "groups");
+      
+      // Log sample user to check lastMessage structure
+      if (users.length > 0) {
+        console.log("📝 Sample user data:", {
+          id: users[0].id,
+          name: users[0].name,
+          hasLastMessage: !!users[0].lastMessage,
+          lastMessageContent: users[0].lastMessage?.content,
+          lastMessageCreatedAt: users[0].lastMessage?.createdAt,
+        });
+      }
+
       // Convert to conversation items
       const userConversations = users.map(convertUserToConversation);
       const groupConversations = groups.map(convertGroupToConversation);
+      
+      console.log("🔄 Converted to conversations:", {
+        userConversations: userConversations.length,
+        groupConversations: groupConversations.length,
+        sampleUserConv: userConversations[0] ? {
+          id: userConversations[0].id,
+          name: userConversations[0].name,
+          hasLastMessage: !!userConversations[0].lastMessage,
+          lastMessageContent: userConversations[0].lastMessage?.content,
+        } : null,
+      });
 
       // Combine and sort by last message timestamp
       const allConversations = [...userConversations, ...groupConversations];

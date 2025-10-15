@@ -15,8 +15,12 @@ COPY pnpm-lock.yaml* ./
 # Use --no-frozen-lockfile to handle updated dependencies
 RUN pnpm install --no-frozen-lockfile --production=false
 
-# Copy the rest of the application code
-COPY . .
+# Copy the rest of the application code (excluding unwanted files)
+COPY src/ src/
+COPY public/ public/
+COPY tsconfig.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
 
 # Copy environment file for production
 COPY .env.production .env

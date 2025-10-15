@@ -74,11 +74,19 @@ export const formatRelativeTime = (date: Date | string | undefined): string => {
 /**
  * Format last seen text
  */
-export const formatLastSeen = (lastSeen: Date | undefined): string => {
-  if (!lastSeen) return "";
+export const formatLastSeen = (lastSeen: Date | string | undefined): string => {
+  if (!lastSeen) return "Offline";
+
+  // Convert to Date object safely
+  const safeDate = createSafeDate(lastSeen);
+  if (!safeDate) return "Offline";
 
   const now = new Date();
-  const diff = now.getTime() - lastSeen.getTime();
+  const diff = now.getTime() - safeDate.getTime();
+  
+  // If difference is negative (future date), treat as offline
+  if (diff < 0) return "Offline";
+  
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -90,7 +98,7 @@ export const formatLastSeen = (lastSeen: Date | undefined): string => {
   if (days < 7) return `Last seen ${days} day${days > 1 ? "s" : ""} ago`;
 
   // For older dates, show the actual date
-  return `Last seen ${lastSeen.toLocaleDateString()}`;
+  return `Last seen ${safeDate.toLocaleDateString()}`;
 };
 
 /**

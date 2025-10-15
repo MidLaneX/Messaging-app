@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { userMappingService } from '../services/userMappingService';
 import GoogleLoginButton from "./GoogleLoginButton";
-import FacebookLoginButton from "./FacebookLoginButton";
 
 interface AuthPageProps {
   onAuthSuccess: (
@@ -21,7 +20,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const [error, setError] = useState("");
 
   const handleSocialLogin = async (
-    provider: "google" | "facebook",
+    provider: "google",
     accessToken: string,
     email: string,
     name: string,
@@ -274,7 +273,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               <div className="flex-1 border-t border-gray-200"></div>
             </div>
 
-            {/* Social Login Buttons - Always show */}
+            {/* Social Login Buttons */}
             <div className="mt-6 space-y-3">
               {/* Google Login - Show with config status */}
               <GoogleLoginButton
@@ -291,37 +290,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                 disabled={loading}
               />
 
-              {/* Facebook Login - Show with config status */}
-              <FacebookLoginButton
-                onSuccess={(accessToken, email, name, profilePicture) =>
-                  handleSocialLogin(
-                    "facebook",
-                    accessToken,
-                    email,
-                    name,
-                    profilePicture
-                  )
-                }
-                onError={(error) => setError(error)}
-                disabled={loading}
-              />
-
               {/* Show configuration status */}
-              {(!process.env.REACT_APP_GOOGLE_CLIENT_ID ||
-                !process.env.REACT_APP_FACEBOOK_APP_ID) && (
+              {!process.env.REACT_APP_GOOGLE_CLIENT_ID && (
                 <div className="text-center text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  {!process.env.REACT_APP_GOOGLE_CLIENT_ID &&
-                  !process.env.REACT_APP_FACEBOOK_APP_ID ? (
-                    <>
-                      ⚠️ Social login not configured. See{" "}
-                      <code className="text-xs">OAUTH_FIX_QUICK.md</code> to
-                      enable.
-                    </>
-                  ) : !process.env.REACT_APP_GOOGLE_CLIENT_ID ? (
-                    <>⚠️ Google login not configured</>
-                  ) : (
-                    <>⚠️ Facebook login not configured</>
-                  )}
+                  ⚠️ Google login not configured. See{" "}
+                  <code className="text-xs">OAUTH_FIX_QUICK.md</code> to
+                  enable.
                 </div>
               )}
             </div>

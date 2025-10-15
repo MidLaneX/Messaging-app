@@ -153,13 +153,31 @@ class RecentUsersService {
     try {
       // Try to fetch conversations first (with last messages)
       try {
+        console.log(`🔄 Fetching conversations for user: ${userId}`);
         const conversationResponse: AxiosResponse<ApiConversation[]> = await this.axiosInstance.get(
           API_ENDPOINTS.RECENT_CONVERSATIONS(userId)
         );
 
+        console.log(`✅ Received ${conversationResponse.data.length} conversations from API`);
+        
+        // Log first conversation to check structure
+        if (conversationResponse.data.length > 0) {
+          console.log('📝 Sample conversation data:', conversationResponse.data[0]);
+        }
+
         const recentUsers = conversationResponse.data.map(conversation => 
           this.convertApiConversationToRecentUser(conversation)
         );
+        
+        // Log converted data
+        if (recentUsers.length > 0) {
+          console.log('📝 Sample converted user data:', {
+            id: recentUsers[0].id,
+            name: recentUsers[0].name,
+            hasLastMessage: !!recentUsers[0].lastMessage,
+            lastMessage: recentUsers[0].lastMessage,
+          });
+        }
 
         return {
           users: recentUsers,
@@ -178,8 +196,27 @@ class RecentUsersService {
         const pageData = response.data;
         const recentUsers = pageData.content.map(apiUser => this.convertApiUserToRecentUser(apiUser));
 
+        // Fetch last messages for each user
+        console.log(`🔄 Fetching last messages for ${recentUsers.length} users...`);
+        const usersWithMessages = await Promise.all(
+          recentUsers.map(async (user) => {
+            try {
+              const lastMessage = await fetchLastMessageForUser(userId, user.id);
+              return {
+                ...user,
+                lastMessage,
+              };
+            } catch (error) {
+              console.warn(`Failed to fetch last message for user ${user.id}:`, error);
+              return user;
+            }
+          })
+        );
+
+        console.log(`✅ Fetched last messages for ${usersWithMessages.filter(u => u.lastMessage).length} users`);
+
         return {
-          users: recentUsers,
+          users: usersWithMessages,
           hasMore: !pageData.last,
           currentPage: pageData.number,
           totalPages: pageData.totalPages,

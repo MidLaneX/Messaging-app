@@ -48,6 +48,10 @@ coverage/
 .dockerignore
 Dockerfile*
 docker-compose*.yml
+deploy.sh
+
+# Scripts that shouldn't be in containers
+*.sh
 
 # Temporary files
 .tmp/

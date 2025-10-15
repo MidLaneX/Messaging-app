@@ -8,6 +8,7 @@ import {
   Zap,
   Globe,
 } from "lucide-react";
+import Logo from "./Logo";
 
 export default function ProfessionalChatLanding() {
   const [isVisible, setIsVisible] = useState(false);
@@ -52,13 +53,7 @@ export default function ProfessionalChatLanding() {
         <header className="px-8 py-6">
           <nav className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-green-700 rounded-xl flex items-center justify-center">
-                <MessageCircle
-                  size={20}
-                  className="text-white"
-                  strokeWidth={2}
-                />
-              </div>
+              <Logo size="md" />
               <span className="text-xl font-bold text-slate-800">
                 Collaborato
               </span>
@@ -75,18 +70,14 @@ export default function ProfessionalChatLanding() {
                 : "translate-y-8 opacity-0"
             }`}
           >
-            {/* Hero Icon */}
+            {/* Hero Logo */}
             <div className="mb-12 relative">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-emerald-600 to-green-700 rounded-2xl shadow-xl relative">
-                <MessageCircle
-                  size={40}
-                  className="text-white"
-                  strokeWidth={1.5}
-                />
+              <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-emerald-600 to-green-700 rounded-2xl shadow-xl relative p-6">
+                <Logo size="xl" className="text-white" variant="light" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-2xl"></div>
               </div>
               <div className="absolute inset-0 flex items-center justify-center -z-10">
-                <div className="w-32 h-32 bg-emerald-600/10 rounded-full blur-2xl"></div>
+                <div className="w-40 h-40 bg-emerald-600/10 rounded-full blur-2xl"></div>
               </div>
             </div>
 

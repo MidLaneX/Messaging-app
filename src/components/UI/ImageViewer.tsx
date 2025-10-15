@@ -103,12 +103,23 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       <div className="relative z-10 max-w-7xl max-h-full w-full">
         {/* Header */}
         <div className="bg-white/95 backdrop-blur-sm rounded-t-2xl px-6 py-4 flex items-center justify-between shadow-lg">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
+            {/* Back Button */}
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+              title="Back"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-pink-600">🖼️</span>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 truncate max-w-md" title={fileAttachment.originalName}>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-gray-900 truncate" title={fileAttachment.originalName}>
                 {fileAttachment.originalName}
               </h3>
               <p className="text-sm text-gray-500">
@@ -117,7 +128,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {/* Download Button */}
             <button
               onClick={handleDownload}
