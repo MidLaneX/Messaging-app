@@ -34,6 +34,7 @@ import EmojiPicker from "./UI/EmojiPicker";
 import FileAttachmentMenu from "./UI/FileAttachmentMenu";
 import FileUploadProgress from "./UI/FileUploadProgress";
 import PendingFilesPreview from "./UI/PendingFilesPreview";
+import CameraModal from "./UI/CameraModal";
 import { sendChatMessage } from "../services/ws";
 import { GroupMembersModal } from "./modals";
 
@@ -79,6 +80,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [showWebcamModal, setShowWebcamModal] = useState(false);
 
   // User profiles cache for message avatars
   const [userProfiles, setUserProfiles] = useState<
@@ -739,7 +741,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       console.error("File input ref is not available");
     }
     setShowAttachmentMenu(false);
-  }, []);
+  }, [handleWebcamCapture]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -781,6 +783,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setIsMenuOpen(false);
       setShowEmojiPicker(false);
       setShowAttachmentMenu(false);
+      setShowWebcamModal(false);
     }
   }, [selectedUser, scrollToBottom]);
 
@@ -861,8 +864,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const formatLastSeenText = useCallback(
     (lastSeen: Date | string | undefined): string => {
-      const safeDate = createSafeDate(lastSeen);
-      return formatLastSeen(safeDate);
+      return formatLastSeen(lastSeen);
     },
     []
   );

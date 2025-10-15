@@ -6,7 +6,7 @@ import { useConversations, ConversationItem } from "./hooks";
 import { useIsMobile, useViewportHeight } from "./hooks/useMediaQuery";
 import { APP_CONFIG } from "./constants";
 import { User, Message } from "./types";
-import { generateUUID } from "./utils";
+import { generateUUID, createSafeDate } from "./utils";
 import { messagePersistence } from "./services/messagePersistence";
 import { selectedConversationPersistence } from "./services/selectedConversationPersistence";
 import { conversationPersistence } from "./services/conversationPersistence";
@@ -19,6 +19,12 @@ import {
   getConnectionStatus,
   testWebSocketConnection,
 } from "./services/ws";
+import {
+  updateActivityFromMessage,
+  isUserOnline,
+  cleanupOldActivity,
+  clearAllTracking,
+} from "./services/onlineStatusTracker";
 import "./utils/websocketDebug"; // Import debug utilities
 
 // Lazy load heavy components
@@ -92,6 +98,33 @@ const ChatApp: React.FC = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [wsMessages]);
+
+  // Track activity for all incoming WebSocket messages
+  useEffect(() => {
+    // Update activity tracker for any message sender
+    wsMessages.forEach(msg => {
+      if (msg.senderId && msg.senderId !== currentUserId && msg.createdAt) {
+        updateActivityFromMessage(msg.senderId, msg.createdAt);
+      }
+    });
+  }, [wsMessages.length, currentUserId]);
+
+  // Cleanup old activity periodically
+  useEffect(() => {
+    // Clean up every 5 minutes
+    const cleanupInterval = setInterval(() => {
+      cleanupOldActivity();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
+  // Clear tracking on logout
+  useEffect(() => {
+    if (!currentUserId) {
+      clearAllTracking();
+    }
+  }, [currentUserId]);
 
   // Fetch current user profile
   useEffect(() => {
@@ -191,10 +224,22 @@ const ChatApp: React.FC = () => {
   // Enhanced conversations with latest WebSocket messages
   const enhancedConversations = useMemo(() => {
     return conversations.map((conv: ConversationItem) => {
+      // Always log the conversation to debug
+      console.log(`Processing conversation ${conv.id}:`, {
+        name: conv.name,
+        isGroup: conv.isGroup,
+        hasRestMessage: !!conv.lastMessage,
+        restMessageContent: conv.lastMessage?.content,
+        restMessageCreatedAt: conv.lastMessage?.createdAt,
+      });
+
       const latestWSMessage = getLatestWSMessageForConversation(
         conv.id,
         conv.isGroup
       );
+
+      // Determine online status using client-side detection (for non-group conversations)
+      const isOnlineNow = conv.isGroup ? false : isUserOnline(conv.id);
 
       // If we have a WebSocket message, check if it's newer than the REST API message
       if (latestWSMessage && conv.lastMessage) {
@@ -203,7 +248,7 @@ const ChatApp: React.FC = () => {
         ).getTime();
         // Fix: Handle both string and potentially undefined createdAt for REST API messages
         const restMessageTime = new Date(
-          conv.lastMessage.createdAt || conv.lastMessage.timestamp || ""
+          conv.lastMessage.createdAt || ""
         ).getTime();
 
         console.log(
@@ -213,39 +258,62 @@ const ChatApp: React.FC = () => {
           {
             wsMessageTime,
             restMessageTime,
+            wsIsValid: !isNaN(wsMessageTime),
+            restIsValid: !isNaN(restMessageTime),
             wsMessage: latestWSMessage,
             restMessage: conv.lastMessage,
-            wsNewer: wsMessageTime > restMessageTime,
+            wsNewer: !isNaN(wsMessageTime) && !isNaN(restMessageTime) && wsMessageTime > restMessageTime,
+            isOnline: isOnlineNow,
           }
         );
 
-        // Use WebSocket message if it's newer
-        if (wsMessageTime > restMessageTime) {
+        // Use WebSocket message if it's newer, otherwise keep REST API message
+        if (!isNaN(wsMessageTime) && !isNaN(restMessageTime) && wsMessageTime > restMessageTime) {
           console.log(
-            `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+            `✅ Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
               conv.id
             }`
           );
           return {
             ...conv,
             lastMessage: latestWSMessage,
+            isOnline: isOnlineNow, // Update online status
+          };
+        } else {
+          console.log(
+            `✅ Using REST API message for ${conv.isGroup ? "group" : "user"} ${
+              conv.id
+            } (REST message is current or WS is invalid)`
+          );
+          return {
+            ...conv,
+            isOnline: isOnlineNow, // Update online status
           };
         }
       } else if (latestWSMessage && !conv.lastMessage) {
         // If there's no REST API message but we have a WebSocket message, use it
         console.log(
-          `Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
+          `✅ Using WebSocket message for ${conv.isGroup ? "group" : "user"} ${
             conv.id
           } (no REST message)`
         );
         return {
           ...conv,
           lastMessage: latestWSMessage,
+          isOnline: isOnlineNow, // Update online status
         };
       }
 
       // Otherwise, use the original conversation (with REST API lastMessage)
-      return conv;
+      console.log(
+        `✅ Using original REST conversation for ${conv.isGroup ? "group" : "user"} ${
+          conv.id
+        } (no WS message, keeping REST message)`
+      );
+      return {
+        ...conv,
+        isOnline: isOnlineNow, // Update online status
+      };
     });
   }, [conversations, wsMessages, currentUser.id]);
 
@@ -304,9 +372,64 @@ const ChatApp: React.FC = () => {
   );
 
   // Mobile-friendly user selection handler
-  const handleUserSelect = (user: User) => {
-    setSelectedUser(user);
-    selectedConversationPersistence.saveSelectedConversation(user);
+  const handleUserSelect = async (user: User) => {
+    // If not a group, try to fetch latest user profile for accurate online status
+    if (!user.isGroup) {
+      try {
+        const profile = await userService.getUserById(user.id);
+        if (profile) {
+          // Get the most recent activity time from either profile or last message
+          let mostRecentActivity = profile.lastSeen ? createSafeDate(profile.lastSeen) : undefined;
+          
+          // Check if there's a last message from this user that's more recent
+          const conversation = conversations.find(conv => conv.id === user.id);
+          if (conversation?.lastMessage) {
+            const lastMessageTime = createSafeDate(conversation.lastMessage.createdAt);
+            
+            // If the last message is from this user (not from us), use that time
+            if (conversation.lastMessage.senderId === user.id && lastMessageTime) {
+              // Update activity tracker with message time
+              updateActivityFromMessage(user.id, lastMessageTime);
+              
+              if (!mostRecentActivity || lastMessageTime > mostRecentActivity) {
+                mostRecentActivity = lastMessageTime;
+                console.log(`📱 Using last message time for ${user.name}:`, lastMessageTime);
+              }
+            }
+          }
+          
+          // Determine online status using our tracker (more reliable than backend)
+          const isOnlineNow = isUserOnline(user.id);
+          
+          const enrichedUser: User = {
+            ...user,
+            isOnline: isOnlineNow, // Use client-side detection
+            lastSeen: mostRecentActivity || user.lastSeen,
+            avatar: profile.profilePictureUrl || user.avatar,
+            name: profile.displayName || profile.username || user.name,
+          };
+          
+          console.log(`👤 User ${user.name} online status:`, isOnlineNow);
+          
+          setSelectedUser(enrichedUser);
+          selectedConversationPersistence.saveSelectedConversation(enrichedUser);
+        } else {
+          // Fallback to original user data
+          setSelectedUser(user);
+          selectedConversationPersistence.saveSelectedConversation(user);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile for selection:', error);
+        // Fallback to original user data
+        setSelectedUser(user);
+        selectedConversationPersistence.saveSelectedConversation(user);
+      }
+    } else {
+      // For groups, use as-is
+      setSelectedUser(user);
+      selectedConversationPersistence.saveSelectedConversation(user);
+    }
+    
     if (isMobile) {
       setShowChatView(true);
     }
@@ -328,6 +451,109 @@ const ChatApp: React.FC = () => {
     }, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  // Periodically update selected user's online status (for non-group chats)
+  useEffect(() => {
+    if (!selectedUser || selectedUser.isGroup) return;
+
+    const updateUserStatus = async () => {
+      try {
+        const profile = await userService.getUserById(selectedUser.id);
+        if (profile) {
+          setSelectedUser((prev) => {
+            if (!prev || prev.id !== selectedUser.id) return prev;
+            
+            // Get the most recent activity time
+            let mostRecentActivity = profile.lastSeen ? createSafeDate(profile.lastSeen) : prev.lastSeen;
+            
+            // Check messages for more recent activity
+            const allCurrentMessages = [...messages, ...wsMessages];
+            const userMessages = allCurrentMessages.filter(
+              msg => msg.senderId === selectedUser.id
+            );
+            
+            if (userMessages.length > 0) {
+              // Get the most recent message from this user
+              const sortedMessages = userMessages.sort(
+                (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+              );
+              const lastMessageTime = createSafeDate(sortedMessages[0].createdAt);
+              
+              if (lastMessageTime) {
+                // Update activity tracker
+                updateActivityFromMessage(selectedUser.id, lastMessageTime);
+                
+                if (!mostRecentActivity || lastMessageTime > mostRecentActivity) {
+                  mostRecentActivity = lastMessageTime;
+                }
+              }
+            }
+            
+            // Use client-side online detection (more reliable than backend)
+            const isOnlineNow = isUserOnline(selectedUser.id);
+            
+            return {
+              ...prev,
+              isOnline: isOnlineNow,
+              lastSeen: mostRecentActivity,
+            };
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to update user status:', error);
+      }
+    };
+
+    // Update immediately
+    updateUserStatus();
+
+    // Then update every 30 seconds
+    const interval = setInterval(updateUserStatus, 30000);
+    return () => clearInterval(interval);
+  }, [selectedUser?.id, selectedUser?.isGroup]);
+
+  // Update lastSeen when new messages arrive from the selected user
+  useEffect(() => {
+    if (!selectedUser || selectedUser.isGroup) return;
+
+    // Check the most recent message from selected user
+    const allCurrentMessages = [...messages, ...wsMessages];
+    const userMessages = allCurrentMessages.filter(
+      msg => msg.senderId === selectedUser.id
+    );
+
+    if (userMessages.length > 0) {
+      // Get the most recent message time
+      const sortedMessages = userMessages.sort(
+        (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+      );
+      const lastMessageTime = createSafeDate(sortedMessages[0].createdAt);
+
+      if (lastMessageTime) {
+        // Update activity tracker
+        updateActivityFromMessage(selectedUser.id, lastMessageTime);
+        
+        // Check if user is now online based on recent activity
+        const isOnlineNow = isUserOnline(selectedUser.id);
+        
+        setSelectedUser((prev) => {
+          if (!prev || prev.id !== selectedUser.id) return prev;
+          
+          // Only update if the message time is more recent than current lastSeen
+          const currentLastSeen = prev.lastSeen;
+          if (!currentLastSeen || lastMessageTime > currentLastSeen || prev.isOnline !== isOnlineNow) {
+            console.log(`📱 Updating status from message for ${prev.name}: online=${isOnlineNow}, lastSeen=`, lastMessageTime);
+            return {
+              ...prev,
+              isOnline: isOnlineNow,
+              lastSeen: lastMessageTime,
+            };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [wsMessages.length, messages.length, selectedUser?.id]);
 
   // Fetch chat messages when selectedUser changes
   useEffect(() => {
@@ -509,6 +735,26 @@ const ChatApp: React.FC = () => {
               // Update conversation cache with new message
               updateConversationWithNewMessage(newMessage);
 
+              // IMPORTANT: Update the conversations list in the UI with the new message
+              // Find the conversation this message belongs to
+              const conversationId = newMessage.recipientId === currentUser.id 
+                ? newMessage.senderId 
+                : newMessage.recipientId || '';
+              
+              if (conversationId) {
+                const existingConv = conversations.find(c => c.id === conversationId && !c.isGroup);
+                if (existingConv) {
+                  // Update existing conversation with new last message
+                  addConversation({
+                    ...existingConv,
+                    lastMessage: newMessage,
+                    unreadCount: newMessage.senderId !== currentUser.id 
+                      ? (existingConv.unreadCount || 0) + 1 
+                      : existingConv.unreadCount,
+                  });
+                }
+              }
+
               return [...prev, newMessage];
             });
           },
@@ -622,6 +868,21 @@ const ChatApp: React.FC = () => {
 
                   // Update conversation cache with new message
                   updateConversationWithNewMessage(newMessage);
+
+                  // IMPORTANT: Update the conversations list in the UI with the new message
+                  if (newMessage.groupId) {
+                    const existingConv = conversations.find(c => c.id === newMessage.groupId && c.isGroup);
+                    if (existingConv) {
+                      // Update existing conversation with new last message
+                      addConversation({
+                        ...existingConv,
+                        lastMessage: newMessage,
+                        unreadCount: newMessage.senderId !== currentUser.id 
+                          ? (existingConv.unreadCount || 0) + 1 
+                          : existingConv.unreadCount,
+                      });
+                    }
+                  }
 
                   const updatedMessages = [...prev, newMessage];
                   console.log(

@@ -31,6 +31,12 @@ class GroupService {
     // Use memberCount if available, otherwise fall back to members array length
     const participantCount = api.memberCount || (api.members ? api.members.length : 0);
     
+    // Log the lastMessage structure
+    console.log(`📝 Converting group ${api.id} (${api.name}):`, {
+      hasLastMessage: !!api.lastMessage,
+      lastMessage: api.lastMessage,
+    });
+    
     return {
       id: api.id,
       participants: api.members || [],
@@ -61,18 +67,42 @@ class GroupService {
          name: g.name,
          memberCount: g.memberCount,
          membersLength: g.members?.length,
-         members: g.members
+         members: g.members,
+         hasLastMessage: !!g.lastMessage,
        })));
        
        const convertedGroups = groups.map(this.convertApiGroup);
-       console.log('📊 Converted groups:', convertedGroups.map(g => ({
+       
+       // Fetch last messages for groups that don't have them
+       const { fetchLastMessageForGroup } = await import('./recentUsersService');
+       const groupsWithMessages = await Promise.all(
+         convertedGroups.map(async (group) => {
+           if (!group.lastMessage) {
+             try {
+               const lastMessage = await fetchLastMessageForGroup(group.id);
+               return {
+                 ...group,
+                 lastMessage,
+               };
+             } catch (error) {
+               console.warn(`Failed to fetch last message for group ${group.id}:`, error);
+               return group;
+             }
+           }
+           return group;
+         })
+       );
+       
+       console.log('📊 Groups with last messages:', groupsWithMessages.map(g => ({
          id: g.id,
          name: g.name,
          memberCount: g.memberCount,
-         participantsLength: g.participants.length
+         participantsLength: g.participants.length,
+         hasLastMessage: !!g.lastMessage,
+         lastMessageContent: g.lastMessage?.content,
        })));
        
-       return convertedGroups;
+       return groupsWithMessages;
     } catch (error) {
       console.error(`Failed to fetch groups for user ${userId}:`, error);
       throw error;
