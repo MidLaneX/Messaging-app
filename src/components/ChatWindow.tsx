@@ -80,6 +80,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [showWebcamModal, setShowWebcamModal] = useState(false);
 
   // User profiles cache for message avatars
   const [userProfiles, setUserProfiles] = useState<
@@ -740,7 +741,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       console.error("File input ref is not available");
     }
     setShowAttachmentMenu(false);
-  }, [handleCameraCapture]);
+  }, [handleWebcamCapture]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -782,7 +783,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setIsMenuOpen(false);
       setShowEmojiPicker(false);
       setShowAttachmentMenu(false);
-      setShowCameraModal(false);
+      setShowWebcamModal(false);
     }
   }, [selectedUser, scrollToBottom]);
 

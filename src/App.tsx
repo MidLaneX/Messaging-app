@@ -509,6 +509,26 @@ const ChatApp: React.FC = () => {
               // Update conversation cache with new message
               updateConversationWithNewMessage(newMessage);
 
+              // IMPORTANT: Update the conversations list in the UI with the new message
+              // Find the conversation this message belongs to
+              const conversationId = newMessage.recipientId === currentUser.id 
+                ? newMessage.senderId 
+                : newMessage.recipientId || '';
+              
+              if (conversationId) {
+                const existingConv = conversations.find(c => c.id === conversationId && !c.isGroup);
+                if (existingConv) {
+                  // Update existing conversation with new last message
+                  addConversation({
+                    ...existingConv,
+                    lastMessage: newMessage,
+                    unreadCount: newMessage.senderId !== currentUser.id 
+                      ? (existingConv.unreadCount || 0) + 1 
+                      : existingConv.unreadCount,
+                  });
+                }
+              }
+
               return [...prev, newMessage];
             });
           },
@@ -622,6 +642,21 @@ const ChatApp: React.FC = () => {
 
                   // Update conversation cache with new message
                   updateConversationWithNewMessage(newMessage);
+
+                  // IMPORTANT: Update the conversations list in the UI with the new message
+                  if (newMessage.groupId) {
+                    const existingConv = conversations.find(c => c.id === newMessage.groupId && c.isGroup);
+                    if (existingConv) {
+                      // Update existing conversation with new last message
+                      addConversation({
+                        ...existingConv,
+                        lastMessage: newMessage,
+                        unreadCount: newMessage.senderId !== currentUser.id 
+                          ? (existingConv.unreadCount || 0) + 1 
+                          : existingConv.unreadCount,
+                      });
+                    }
+                  }
 
                   const updatedMessages = [...prev, newMessage];
                   console.log(
