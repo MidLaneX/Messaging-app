@@ -10,3 +10,4 @@ export {
 } from "./FileUploadProgress";
 export { default as EmojiPicker } from './EmojiPicker';
 export { default as FileAttachmentMenu } from './FileAttachmentMenu';
+export { default as Logo } from './Logo';

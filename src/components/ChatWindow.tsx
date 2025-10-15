@@ -34,6 +34,7 @@ import EmojiPicker from "./UI/EmojiPicker";
 import FileAttachmentMenu from "./UI/FileAttachmentMenu";
 import FileUploadProgress from "./UI/FileUploadProgress";
 import PendingFilesPreview from "./UI/PendingFilesPreview";
+import CameraModal from "./UI/CameraModal";
 import { sendChatMessage } from "../services/ws";
 import { GroupMembersModal } from "./modals";
 
@@ -739,7 +740,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       console.error("File input ref is not available");
     }
     setShowAttachmentMenu(false);
-  }, []);
+  }, [handleCameraCapture]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -781,6 +782,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setIsMenuOpen(false);
       setShowEmojiPicker(false);
       setShowAttachmentMenu(false);
+      setShowCameraModal(false);
     }
   }, [selectedUser, scrollToBottom]);
 
