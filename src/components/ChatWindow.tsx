@@ -864,8 +864,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const formatLastSeenText = useCallback(
     (lastSeen: Date | string | undefined): string => {
-      const safeDate = createSafeDate(lastSeen);
-      return formatLastSeen(safeDate);
+      return formatLastSeen(lastSeen);
     },
     []
   );
